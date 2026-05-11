@@ -5,9 +5,11 @@ import cn.chen.assimp.core.AISceneData
 import cn.chen.assimp.loader.AIModelLoader
 import cn.chen.assimp.math.AIMat4
 import cn.chen.assimp.material.AITexType
+import com.mojang.blaze3d.PrimitiveTopology
 import com.mojang.blaze3d.buffers.GpuBuffer
 import com.mojang.blaze3d.platform.NativeImage
 import com.mojang.blaze3d.systems.RenderSystem
+import com.mojang.blaze3d.textures.FilterMode
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext
 import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.RenderPipelines
@@ -32,8 +34,8 @@ class AIWorldRenderer {
     var scene: AISceneData? = null; private set
     var animator: AIAnimator? = null; private set
     var loaded = false; private set
-    var pos = floatArrayOf(0f, 70f, 0f)
-    var scale = 0.1f
+    var pos = floatArrayOf(0f, 0f, 0f)
+    var scale = 1f
     var rot = floatArrayOf(0f, 0f, 0f)
     private var lastTime = System.nanoTime()
     private val texIds = mutableMapOf<Int, Identifier>()
@@ -67,27 +69,28 @@ class AIWorldRenderer {
         animator?.update(dt)
         val mc = Minecraft.getInstance()
         val cam = mc.gameRenderer.mainCamera().position()
-        val device = RenderSystem.getDevice()
         val mainTarget = mc.gameRenderer.mainRenderTarget()
         val colorView = mainTarget.colorTextureView ?: return
         val depthView = mainTarget.depthTextureView ?: return
-        val modelMat = Matrix4f()
+        val modelMat = Matrix4f(RenderSystem.getModelViewStack())
             .translate((pos[0] - cam.x).toFloat(), (pos[1] - cam.y).toFloat(), (pos[2] - cam.z).toFloat())
             .scale(scale)
         if (rot[0] != 0f) modelMat.rotateX(Math.toRadians(rot[0].toDouble()).toFloat())
         if (rot[1] != 0f) modelMat.rotateY(Math.toRadians(rot[1].toDouble()).toFloat())
         if (rot[2] != 0f) modelMat.rotateZ(Math.toRadians(rot[2].toDouble()).toFloat())
-        val dynUniforms = RenderSystem.getDynamicUniforms()
-        val transformSlice = dynUniforms.writeTransform(modelMat, Vector4f(1f, 1f, 1f, 1f))
-        val pipeline = RenderPipelines.ENTITY_CUTOUT
+        val transformSlice = RenderSystem.getDynamicUniforms().writeTransform(modelMat, Vector4f(1f, 1f, 1f, 1f))
+        val device = RenderSystem.getDevice()
         val encoder = device.createCommandEncoder()
         val pass = encoder.createRenderPass(
             { "ai_model" }, colorView, Optional.empty(), depthView, OptionalDouble.empty()
         )
+        pass.setPipeline(RenderPipelines.ENTITY_CUTOUT)
         RenderSystem.bindDefaultUniforms(pass)
-        pass.setPipeline(pipeline)
         pass.setUniform("DynamicTransforms", transformSlice)
         val overlayView = mc.gameRenderer.overlayTexture().textureView
+        val lightView = mc.gameRenderer.lightmap()
+        val lightSampler = RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR)
+        val quadBuf = RenderSystem.getSequentialBuffer(PrimitiveTopology.QUADS)
         val tm = mc.textureManager
         for (batch in gpuBatches) {
             val tex = tm.getTexture(batch.texId)
@@ -95,8 +98,10 @@ class AIWorldRenderer {
             val texSampler = tex.sampler
             pass.bindTexture("Sampler0", texView, texSampler)
             pass.bindTexture("Sampler1", overlayView, texSampler)
+            pass.bindTexture("Sampler2", lightView, lightSampler)
             pass.setVertexBuffer(0, batch.vb.slice())
-            pass.draw(batch.quadCount * 4, 1)
+            pass.setIndexBuffer(quadBuf.getBuffer(batch.quadCount), quadBuf.type())
+            pass.drawIndexed(0, 0, batch.quadCount * 6, 1)
         }
         pass.close()
         encoder.submit()
