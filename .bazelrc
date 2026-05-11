@@ -1,0 +1,10 @@
+common --action_env=JAVA_HOME=/usr/local/java/jdk-25.0.3
+common --repo_env=JAVA_HOME=/usr/local/java/jdk-25.0.3
+common --java_runtime_version=local_jdk
+common --tool_java_runtime_version=local_jdk
+common --java_language_version=25
+common --tool_java_language_version=25
+common --symlink_prefix=mod/
+common --experimental_convenience_symlinks=ignore
+build --jobs=auto
+build --worker_sandboxing

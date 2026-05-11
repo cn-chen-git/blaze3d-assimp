@@ -1,0 +1,123 @@
+load("@rules_kotlin//kotlin:core.bzl", "kt_compiler_plugin", "kt_kotlinc_options")
+load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_library")
+load("@rules_java//java:defs.bzl", "java_binary")
+load("//rule:fabric_mod_jar.bzl", "fabric_mod_jar")
+kt_compiler_plugin(
+    name = "serialization_plugin",
+    compile_phase = True,
+    id = "org.jetbrains.kotlin.serialization",
+    stubs_phase = True,
+    deps = [
+        "@rules_kotlin//kotlin/compiler:kotlinx-serialization-compiler-plugin",
+    ],
+)
+kt_jvm_library(
+    name = "kotlin_serialization",
+    srcs = [],
+    visibility = ["//visibility:public"],
+    exported_compiler_plugins = [":serialization_plugin"],
+    exports = [
+        "@maven//:org_jetbrains_kotlinx_kotlinx_serialization_core_jvm",
+    ],
+)
+kt_kotlinc_options(
+    name = "kotlinc_opts",
+    jvm_target = "25",
+)
+kt_jvm_library(
+    name = "mod",
+    srcs = glob(["src/main/kotlin/**/*.kt"]),
+    resources = glob(["src/main/resources/**"]),
+    kotlinc_opts = ":kotlinc_opts",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@minecraft//:26.2-snapshot-6_client",
+        "@minecraft//:26.2-snapshot-6_client_libraries",
+        "@maven//:net_fabricmc_fabric_loader",
+        "@maven//:net_fabricmc_fabric_api_fabric_api",
+        "@maven//:net_fabricmc_fabric_language_kotlin",
+        "@maven//:net_fabricmc_sponge_mixin",
+        "@maven//:org_lwjgl_lwjgl_assimp",
+        "@maven//:org_lwjgl_lwjgl_stb",
+        "@maven//:org_lwjgl_lwjgl_shaderc",
+        "@maven//:org_lwjgl_lwjgl_vma",
+        "@maven//:org_joml_joml",
+    ],
+)
+fabric_mod_jar(
+    name = "fabric_mod",
+    output = "lwjgl-assimp-1.0.0.jar",
+    version = "1.0.0",
+    srcs = [":mod"],
+    jars_in_jar = [
+        "@maven//:org_lwjgl_lwjgl_assimp",
+        "@maven//:org_lwjgl_lwjgl_assimp_natives_linux",
+        "@maven//:org_lwjgl_lwjgl_assimp_natives_linux_arm64",
+        "@maven//:org_lwjgl_lwjgl_assimp_natives_macos",
+        "@maven//:org_lwjgl_lwjgl_assimp_natives_macos_arm64",
+        "@maven//:org_lwjgl_lwjgl_assimp_natives_windows",
+        "@maven//:org_lwjgl_lwjgl_assimp_natives_windows_arm64",
+        "@maven//:org_lwjgl_lwjgl_shaderc",
+        "@maven//:org_lwjgl_lwjgl_shaderc_natives_linux",
+        "@maven//:org_lwjgl_lwjgl_shaderc_natives_linux_arm64",
+        "@maven//:org_lwjgl_lwjgl_shaderc_natives_macos",
+        "@maven//:org_lwjgl_lwjgl_shaderc_natives_macos_arm64",
+        "@maven//:org_lwjgl_lwjgl_shaderc_natives_windows",
+        "@maven//:org_lwjgl_lwjgl_shaderc_natives_windows_arm64",
+        "@maven//:org_lwjgl_lwjgl_stb",
+        "@maven//:org_lwjgl_lwjgl_stb_natives_linux",
+        "@maven//:org_lwjgl_lwjgl_stb_natives_linux_arm64",
+        "@maven//:org_lwjgl_lwjgl_stb_natives_macos",
+        "@maven//:org_lwjgl_lwjgl_stb_natives_macos_arm64",
+        "@maven//:org_lwjgl_lwjgl_stb_natives_windows",
+        "@maven//:org_lwjgl_lwjgl_stb_natives_windows_arm64",
+        "@maven//:org_lwjgl_lwjgl_vma",
+        "@maven//:org_lwjgl_lwjgl_vma_natives_linux",
+        "@maven//:org_lwjgl_lwjgl_vma_natives_linux_arm64",
+        "@maven//:org_lwjgl_lwjgl_vma_natives_macos",
+        "@maven//:org_lwjgl_lwjgl_vma_natives_macos_arm64",
+        "@maven//:org_lwjgl_lwjgl_vma_natives_windows",
+        "@maven//:org_lwjgl_lwjgl_vma_natives_windows_arm64",
+    ],
+)
+java_binary(
+    name = "client",
+    srcs = [],
+    data = [
+        "@minecraft_assets//:assets_26.2-snapshot-6",
+        "@minecraft_assets//:versions/26.2-snapshot-6",
+    ],
+    env = {
+        "LANG": "en_US.UTF8",
+    },
+    jvm_flags = [
+        "-Dfabric.development=true",
+        "-Dfabric.log.disableAnsi=false",
+        "-Ddev.launch.version=26.2-snapshot-6",
+        "-Ddev.launch.type=client",
+        "-Ddev.launch.mainClass=net.fabricmc.loader.impl.launch.knot.KnotClient",
+        "-Ddev.launch.assetsPath=$(rootpath @minecraft_assets//:versions/26.2-snapshot-6)",
+        "-Xmx4G",
+    ],
+    main_class = "top.fifthlight.fabazel.devlaunchwrapper.DevLaunchWrapper",
+    runtime_deps = [
+        "//rule/dev_launch_wrapper",
+        "@maven//:org_ow2_asm_asm",
+        "@maven//:org_ow2_asm_asm_tree",
+        "@maven//:org_ow2_asm_asm_commons",
+        "@minecraft//:26.2-snapshot-6_client_libraries",
+        ":mod",
+        "@maven//:net_fabricmc_fabric_loader",
+        "@maven//:net_fabricmc_fabric_api_fabric_api",
+        "@maven//:net_fabricmc_fabric_language_kotlin",
+        "@maven//:net_fabricmc_sponge_mixin",
+        "@maven//:org_lwjgl_lwjgl_assimp",
+        "@maven//:org_lwjgl_lwjgl_assimp_natives_linux",
+        "@maven//:org_lwjgl_lwjgl_stb",
+        "@maven//:org_lwjgl_lwjgl_stb_natives_linux",
+        "@maven//:org_lwjgl_lwjgl_shaderc",
+        "@maven//:org_lwjgl_lwjgl_shaderc_natives_linux",
+        "@maven//:org_lwjgl_lwjgl_vma",
+        "@maven//:org_lwjgl_lwjgl_vma_natives_linux",
+    ],
+)

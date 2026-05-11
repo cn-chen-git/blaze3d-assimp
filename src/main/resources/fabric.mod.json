@@ -1,0 +1,36 @@
+{
+	"schemaVersion": 1,
+	"id": "lwjgl-assimp",
+	"version": "${version}",
+	"name": "lwjgl-assimp",
+	"description": "",
+	"authors": [],
+	"contact": {},
+	"license": "CC0-1.0",
+	"icon": "assets/lwjgl-assimp/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			{
+				"value": "cn.chen.assimp.Lwjglassimp",
+				"adapter": "kotlin"
+			}
+		],
+		"client": [
+			{
+				"value": "cn.chen.assimp.client.AIClientInit",
+				"adapter": "kotlin"
+			}
+		]
+	},
+	"mixins": [
+		"lwjgl-assimp.mixins.json"
+	],
+	"depends": {
+		"fabricloader": ">=0.19.2",
+		"minecraft": "~26.2-",
+		"java": ">=25",
+		"fabric-api": "*",
+		"fabric-language-kotlin": "*"
+	}
+}
