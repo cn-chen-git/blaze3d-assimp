@@ -210,33 +210,45 @@ void main() {
     p.transmission = transmission;
     vec3 mcLight = toLinear(lightMapColor.rgb);
     float skyBright = max(max(mcLight.r, mcLight.g), mcLight.b);
-    float exposure = max(skyBright, 0.12);
+    vec3 lightTint = skyBright > 1e-4 ? mcLight / skyBright : vec3(1.0);
     vec3 L0 = normalize(Light0_Direction);
     vec3 L1 = normalize(Light1_Direction);
-    vec3 sunColor = vec3(1.0, 0.95, 0.88);
-    vec3 fillColor = vec3(0.5, 0.6, 0.85);
+    vec3 sunColor = vec3(1.0, 0.95, 0.88) * lightTint;
+    vec3 fillColor = vec3(0.5, 0.6, 0.85) * lightTint;
     float shadow = sampleShadow(fragWorldPos, length(fragPos));
-    vec3 Lo = evalDirectLight(p, L0, sunColor, 6.0 * exposure * shadow);
-    Lo += evalDirectLight(p, L1, fillColor, 2.0 * exposure);
+    vec3 Lo = evalDirectLight(p, L0, sunColor, 4.5 * skyBright * shadow);
+    Lo += evalDirectLight(p, L1, fillColor, 1.5 * skyBright);
     vec3 irradiance = sampleIrradiance(p.N);
     vec3 R = reflect(-p.V, p.N);
     vec3 prefiltered = samplePrefilter(R, roughness);
     vec2 brdf = texture(BrdfLut, vec2(p.ndv, roughness)).rg;
     vec3 ibl = evalIBL(p, irradiance, prefiltered, brdf);
-    float iblMix = max(exposure, 0.25);
-    vec3 ambient = ibl * iblMix;
+    vec3 ambient = ibl * skyBright + p.albedo * mcLight * 0.35;
     vec3 color = Lo + ambient;
     if (p.transmission > 0.0) {
-        vec3 transmitted = irradiance * p.albedo * p.transmission * (1.0 - metallic) * iblMix;
+        vec3 transmitted = irradiance * p.albedo * p.transmission * (1.0 - metallic) * max(skyBright, 0.1);
         color += transmitted;
     }
-    vec3 emissiveTex = toLinear(texture(EmissiveMap, texCoord0).rgb);
+    vec3 emissiveBase = toLinear(texture(EmissiveMap, texCoord0).rgb);
+    const float emR = 0.005;
+    vec3 emissiveHalo = emissiveBase * 0.25;
+    emissiveHalo += toLinear(texture(EmissiveMap, texCoord0 + vec2( emR, 0.0)).rgb) * 0.125;
+    emissiveHalo += toLinear(texture(EmissiveMap, texCoord0 + vec2(-emR, 0.0)).rgb) * 0.125;
+    emissiveHalo += toLinear(texture(EmissiveMap, texCoord0 + vec2( 0.0,  emR)).rgb) * 0.125;
+    emissiveHalo += toLinear(texture(EmissiveMap, texCoord0 + vec2( 0.0, -emR)).rgb) * 0.125;
+    emissiveHalo += toLinear(texture(EmissiveMap, texCoord0 + vec2( emR * 0.7,  emR * 0.7)).rgb) * 0.0625;
+    emissiveHalo += toLinear(texture(EmissiveMap, texCoord0 + vec2( emR * 0.7, -emR * 0.7)).rgb) * 0.0625;
+    emissiveHalo += toLinear(texture(EmissiveMap, texCoord0 + vec2(-emR * 0.7,  emR * 0.7)).rgb) * 0.0625;
+    emissiveHalo += toLinear(texture(EmissiveMap, texCoord0 + vec2(-emR * 0.7, -emR * 0.7)).rgb) * 0.0625;
     float emStr = max(MatEmissiveStrength.a, 1.0);
-    vec3 emissive = emissiveTex * MatEmissiveStrength.rgb * emStr;
-    float emLuma = dot(emissive, vec3(0.2126, 0.7152, 0.0722));
-    if (emLuma > 0.01) {
-        color += emissive * 2.5;
-        alpha = min(alpha + emLuma * 0.3, 1.0);
+    vec3 emissiveFactor = MatEmissiveStrength.rgb;
+    vec3 emissive = emissiveBase * emissiveFactor * emStr;
+    vec3 halo = emissiveHalo * emissiveFactor * emStr;
+    float emLuma = dot(emissive + halo, vec3(0.2126, 0.7152, 0.0722));
+    if (emLuma > 0.001) {
+        color += emissive * 3.0;
+        color += halo * 1.6;
+        alpha = min(alpha + emLuma * 0.4, 1.0);
     }
     color = mix(toLinear(overlayColor.rgb), color, overlayColor.a);
     color = acesTonemap(color);
