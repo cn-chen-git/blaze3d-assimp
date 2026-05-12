@@ -1,5 +1,7 @@
 package cn.chen.assimp.anim
-import cn.chen.assimp.core.*
+import cn.chen.assimp.core.AIAnimClip
+import cn.chen.assimp.core.AIBonePose
+import cn.chen.assimp.core.AINodeGraph
 import cn.chen.assimp.math.AIMat4
 import cn.chen.assimp.math.AIQuat
 import cn.chen.assimp.math.AIVec3

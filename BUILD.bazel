@@ -24,15 +24,67 @@ kt_kotlinc_options(
     name = "kotlinc_opts",
     jvm_target = "25",
 )
+_MC_DEPS = [
+    "@minecraft//:26.2-snapshot-6_client",
+    "@minecraft//:26.2-snapshot-6_client_libraries",
+    "@maven//:org_joml_joml",
+]
 kt_jvm_library(
-    name = "mod",
-    srcs = glob(["src/main/kotlin/**/*.kt"]),
+    name = "mod_math",
+    srcs = glob(["src/main/kotlin/cn/chen/assimp/math/**/*.kt"]),
+    kotlinc_opts = ":kotlinc_opts",
+    deps = _MC_DEPS,
+)
+kt_jvm_library(
+    name = "mod_material",
+    srcs = glob(["src/main/kotlin/cn/chen/assimp/material/**/*.kt"]),
+    kotlinc_opts = ":kotlinc_opts",
+    deps = _MC_DEPS + [":mod_math"],
+)
+kt_jvm_library(
+    name = "mod_core",
+    srcs = glob(["src/main/kotlin/cn/chen/assimp/core/**/*.kt"]),
+    kotlinc_opts = ":kotlinc_opts",
+    deps = _MC_DEPS + [":mod_math", ":mod_material"],
+)
+kt_jvm_library(
+    name = "mod_anim",
+    srcs = glob(["src/main/kotlin/cn/chen/assimp/anim/**/*.kt"]),
+    kotlinc_opts = ":kotlinc_opts",
+    deps = _MC_DEPS + [":mod_math", ":mod_core"],
+)
+kt_jvm_library(
+    name = "mod_loader",
+    srcs = glob(["src/main/kotlin/cn/chen/assimp/loader/**/*.kt"]),
+    kotlinc_opts = ":kotlinc_opts",
+    deps = _MC_DEPS + [
+        ":mod_math", ":mod_core", ":mod_material",
+        "@maven//:org_lwjgl_lwjgl_assimp",
+    ],
+)
+kt_jvm_library(
+    name = "mod_render",
+    srcs = glob(["src/main/kotlin/cn/chen/assimp/render/**/*.kt"]),
     resources = glob(["src/main/resources/**"]),
     kotlinc_opts = ":kotlinc_opts",
+    deps = _MC_DEPS + [
+        ":mod_math", ":mod_core", ":mod_material", ":mod_anim", ":mod_loader",
+        "@maven//:org_lwjgl_lwjgl_stb",
+        "@maven//:net_fabricmc_fabric_api_fabric_api",
+        "@maven//:net_fabricmc_fabric_loader",
+    ],
+)
+kt_jvm_library(
+    name = "mod",
+    srcs = glob([
+        "src/main/kotlin/cn/chen/assimp/*.kt",
+        "src/main/kotlin/cn/chen/assimp/debug/**/*.kt",
+        "src/main/kotlin/cn/chen/assimp/client/**/*.kt",
+    ]),
+    kotlinc_opts = ":kotlinc_opts",
     visibility = ["//visibility:public"],
-    deps = [
-        "@minecraft//:26.2-snapshot-6_client",
-        "@minecraft//:26.2-snapshot-6_client_libraries",
+    deps = _MC_DEPS + [
+        ":mod_render", ":mod_anim", ":mod_core", ":mod_loader",
         "@maven//:net_fabricmc_fabric_loader",
         "@maven//:net_fabricmc_fabric_api_fabric_api",
         "@maven//:net_fabricmc_fabric_language_kotlin",
@@ -41,7 +93,6 @@ kt_jvm_library(
         "@maven//:org_lwjgl_lwjgl_stb",
         "@maven//:org_lwjgl_lwjgl_shaderc",
         "@maven//:org_lwjgl_lwjgl_vma",
-        "@maven//:org_joml_joml",
     ],
 )
 fabric_mod_jar(

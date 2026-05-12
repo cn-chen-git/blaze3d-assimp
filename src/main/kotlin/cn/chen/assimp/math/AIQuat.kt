@@ -1,5 +1,8 @@
 package cn.chen.assimp.math
-import kotlin.math.*
+import kotlin.math.acos
+import kotlin.math.cos
+import kotlin.math.sin
+import kotlin.math.sqrt
 data class AIQuat(var x: Float = 0f, var y: Float = 0f, var z: Float = 0f, var w: Float = 1f) {
     fun normalize(): AIQuat {
         val l = sqrt(x * x + y * y + z * z + w * w)

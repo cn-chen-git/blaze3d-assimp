@@ -1,5 +1,6 @@
 package cn.chen.assimp.anim
-import cn.chen.assimp.core.*
+import cn.chen.assimp.core.AIAnimClip
+import cn.chen.assimp.core.AISceneData
 class AIAnimator(private val scene: AISceneData) {
     var currentAnimation: AIAnimClip? = null; private set
     var currentTime: Double = 0.0; private set

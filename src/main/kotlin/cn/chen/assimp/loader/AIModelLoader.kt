@@ -19,8 +19,70 @@ import cn.chen.assimp.material.AIAlphaMode
 import cn.chen.assimp.material.AITexInfo
 import cn.chen.assimp.material.AITexType
 import cn.chen.assimp.material.AIEmbeddedTex
-import org.lwjgl.assimp.*
-import org.lwjgl.assimp.Assimp.*
+import cn.chen.assimp.material.AIKhrClearcoat
+import cn.chen.assimp.material.AIKhrExt
+import cn.chen.assimp.material.AIKhrSheen
+import cn.chen.assimp.material.AIKhrTransmission
+import cn.chen.assimp.material.AIKhrUnlit
+import cn.chen.assimp.material.AIKhrVolume
+import org.lwjgl.assimp.AIAnimation
+import org.lwjgl.assimp.AIAnimMesh
+import org.lwjgl.assimp.AIBone
+import org.lwjgl.assimp.AIColor4D
+import org.lwjgl.assimp.AIMaterial
+import org.lwjgl.assimp.AIMatrix4x4
+import org.lwjgl.assimp.AIMesh
+import org.lwjgl.assimp.AINode
+import org.lwjgl.assimp.AINodeAnim
+import org.lwjgl.assimp.AIScene
+import org.lwjgl.assimp.AIString
+import org.lwjgl.assimp.AITexture
+import org.lwjgl.assimp.Assimp.AI_MATKEY_BASE_COLOR
+import org.lwjgl.assimp.Assimp.AI_MATKEY_COLOR_DIFFUSE
+import org.lwjgl.assimp.Assimp.AI_MATKEY_COLOR_EMISSIVE
+import org.lwjgl.assimp.Assimp.AI_MATKEY_GLTF_ALPHACUTOFF
+import org.lwjgl.assimp.Assimp.AI_MATKEY_GLTF_ALPHAMODE
+import org.lwjgl.assimp.Assimp.AI_MATKEY_METALLIC_FACTOR
+import org.lwjgl.assimp.Assimp.AI_MATKEY_NAME
+import org.lwjgl.assimp.Assimp.AI_MATKEY_REFRACTI
+import org.lwjgl.assimp.Assimp.AI_MATKEY_ROUGHNESS_FACTOR
+import org.lwjgl.assimp.Assimp.AI_MATKEY_TWOSIDED
+import org.lwjgl.assimp.Assimp.aiGetErrorString
+import org.lwjgl.assimp.Assimp.aiGetMaterialColor
+import org.lwjgl.assimp.Assimp.aiGetMaterialFloatArray
+import org.lwjgl.assimp.Assimp.aiGetMaterialIntegerArray
+import org.lwjgl.assimp.Assimp.aiGetMaterialString
+import org.lwjgl.assimp.Assimp.aiGetMaterialTexture
+import org.lwjgl.assimp.Assimp.aiImportFile
+import org.lwjgl.assimp.Assimp.aiImportFileFromMemory
+import org.lwjgl.assimp.Assimp.aiProcess_CalcTangentSpace
+import org.lwjgl.assimp.Assimp.aiProcess_FlipUVs
+import org.lwjgl.assimp.Assimp.aiProcess_GenBoundingBoxes
+import org.lwjgl.assimp.Assimp.aiProcess_GenNormals
+import org.lwjgl.assimp.Assimp.aiProcess_GlobalScale
+import org.lwjgl.assimp.Assimp.aiProcess_ImproveCacheLocality
+import org.lwjgl.assimp.Assimp.aiProcess_JoinIdenticalVertices
+import org.lwjgl.assimp.Assimp.aiProcess_LimitBoneWeights
+import org.lwjgl.assimp.Assimp.aiProcess_SortByPType
+import org.lwjgl.assimp.Assimp.aiProcess_Triangulate
+import org.lwjgl.assimp.Assimp.aiProcess_ValidateDataStructure
+import org.lwjgl.assimp.Assimp.aiReleaseImport
+import org.lwjgl.assimp.Assimp.aiReturn_SUCCESS
+import org.lwjgl.assimp.Assimp.aiTextureType_BASE_COLOR
+import org.lwjgl.assimp.Assimp.aiTextureType_CLEARCOAT
+import org.lwjgl.assimp.Assimp.aiTextureType_DIFFUSE
+import org.lwjgl.assimp.Assimp.aiTextureType_EMISSION_COLOR
+import org.lwjgl.assimp.Assimp.aiTextureType_EMISSIVE
+import org.lwjgl.assimp.Assimp.aiTextureType_HEIGHT
+import org.lwjgl.assimp.Assimp.aiTextureType_LIGHTMAP
+import org.lwjgl.assimp.Assimp.aiTextureType_METALNESS
+import org.lwjgl.assimp.Assimp.aiTextureType_NONE
+import org.lwjgl.assimp.Assimp.aiTextureType_NORMALS
+import org.lwjgl.assimp.Assimp.aiTextureType_OPACITY
+import org.lwjgl.assimp.Assimp.aiTextureType_SHEEN
+import org.lwjgl.assimp.Assimp.aiTextureType_SPECULAR
+import org.lwjgl.assimp.Assimp.aiTextureType_TRANSMISSION
+import org.lwjgl.assimp.Assimp.aiTextureType_UNKNOWN
 import java.nio.ByteBuffer
 object AIModelLoader {
     private const val DEFAULT_FLAGS = aiProcess_Triangulate or aiProcess_GenNormals or
@@ -202,14 +264,14 @@ object AIModelLoader {
             khrExtensions = khr
         )
     }
-    private fun parseKhrExtensions(mat: AIMaterial): cn.chen.assimp.material.AIKhrExt {
+    private fun parseKhrExtensions(mat: AIMaterial): AIKhrExt {
         val f1 = floatArrayOf(0f); val max = intArrayOf(1)
         var clearcoatFactor = 0f; var clearcoatRoughness = 0f
         max[0] = 1
         if (aiGetMaterialFloatArray(mat, "\$mat.gltf.clearcoatFactor", 0, 0, f1, max) == aiReturn_SUCCESS) clearcoatFactor = f1[0]
         max[0] = 1
         if (aiGetMaterialFloatArray(mat, "\$mat.gltf.clearcoatRoughnessFactor", 0, 0, f1, max) == aiReturn_SUCCESS) clearcoatRoughness = f1[0]
-        val clearcoat = if (clearcoatFactor > 0f) cn.chen.assimp.material.AIKhrClearcoat(clearcoatFactor, clearcoatRoughness) else null
+        val clearcoat = if (clearcoatFactor > 0f) AIKhrClearcoat(clearcoatFactor, clearcoatRoughness) else null
         var sheenRoughness = 0f
         max[0] = 1
         if (aiGetMaterialFloatArray(mat, "\$mat.gltf.sheenRoughnessFactor", 0, 0, f1, max) == aiReturn_SUCCESS) sheenRoughness = f1[0]
@@ -218,20 +280,20 @@ object AIModelLoader {
         if (aiGetMaterialColor(mat, "\$mat.gltf.sheenColorFactor", 0, 0, sheenCol) == aiReturn_SUCCESS) {
             sheenColor = AIVec3(sheenCol.r(), sheenCol.g(), sheenCol.b())
         }
-        val sheen = if (sheenRoughness > 0f || sheenColor.length() > 0f) cn.chen.assimp.material.AIKhrSheen(sheenColor, sheenRoughness) else null
+        val sheen = if (sheenRoughness > 0f || sheenColor.length() > 0f) AIKhrSheen(sheenColor, sheenRoughness) else null
         var transmissionFactor = 0f
         max[0] = 1
         if (aiGetMaterialFloatArray(mat, "\$mat.gltf.transmissionFactor", 0, 0, f1, max) == aiReturn_SUCCESS) transmissionFactor = f1[0]
-        val transmission = if (transmissionFactor > 0f) cn.chen.assimp.material.AIKhrTransmission(transmissionFactor) else null
+        val transmission = if (transmissionFactor > 0f) AIKhrTransmission(transmissionFactor) else null
         var thicknessFactor = 0f
         max[0] = 1
         if (aiGetMaterialFloatArray(mat, "\$mat.gltf.thicknessFactor", 0, 0, f1, max) == aiReturn_SUCCESS) thicknessFactor = f1[0]
-        val volume = if (thicknessFactor > 0f) cn.chen.assimp.material.AIKhrVolume(thicknessFactor) else null
+        val volume = if (thicknessFactor > 0f) AIKhrVolume(thicknessFactor) else null
         var unlit = false
         val i1 = intArrayOf(0); val imax = intArrayOf(1)
         if (aiGetMaterialIntegerArray(mat, "\$mat.gltf.unlit", 0, 0, i1, imax) == aiReturn_SUCCESS) unlit = i1[0] != 0
-        val unlitExt = if (unlit) cn.chen.assimp.material.AIKhrUnlit(true) else null
-        return cn.chen.assimp.material.AIKhrExt(
+        val unlitExt = if (unlit) AIKhrUnlit(true) else null
+        return AIKhrExt(
             clearcoat = clearcoat,
             sheen = sheen,
             transmission = transmission,

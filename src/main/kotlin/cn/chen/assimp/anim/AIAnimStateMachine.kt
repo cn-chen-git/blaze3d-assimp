@@ -2,6 +2,7 @@ package cn.chen.assimp.anim
 import cn.chen.assimp.core.AIAnimClip
 import cn.chen.assimp.core.AINodeGraph
 import cn.chen.assimp.core.AIBonePose
+import cn.chen.assimp.math.AIMat4
 class AIAnimState(val name: String, val clip: AIAnimClip, val loop: Boolean = true, val speed: Float = 1f)
 class AIAnimTransition(val from: String, val to: String, val duration: Float, val condition: () -> Boolean)
 class AIAnimStateMachine(private val skeleton: AIBonePose, private val rootNode: AINodeGraph) {
@@ -49,9 +50,9 @@ class AIAnimStateMachine(private val skeleton: AIBonePose, private val rootNode:
         val ticks2 = if (nxtClip.ticksPerSecond > 0.0) nxtClip.ticksPerSecond else 25.0
         val animTime1 = (currentTime * ticks1) % curClip.duration
         val animTime2 = (nextTime * ticks2) % nxtClip.duration
-        traverseBlend(rootNode, curClip, nxtClip, animTime1, animTime2, cn.chen.assimp.math.AIMat4.identity())
+        traverseBlend(rootNode, curClip, nxtClip, animTime1, animTime2, AIMat4.identity())
     }
-    private fun traverseBlend(node: AINodeGraph, clip1: AIAnimClip, clip2: AIAnimClip, t1: Double, t2: Double, parent: cn.chen.assimp.math.AIMat4) {
+    private fun traverseBlend(node: AINodeGraph, clip1: AIAnimClip, clip2: AIAnimClip, t1: Double, t2: Double, parent: AIMat4) {
         val ch1 = clip1.getChannel(node.name)
         val ch2 = clip2.getChannel(node.name)
         val tr1 = ch1?.computeTransform(t1) ?: node.transform
@@ -63,10 +64,10 @@ class AIAnimStateMachine(private val skeleton: AIBonePose, private val rootNode:
         }
         for (child in node.children) traverseBlend(child, clip1, clip2, t1, t2, global)
     }
-    private fun lerpMatrix(a: cn.chen.assimp.math.AIMat4, b: cn.chen.assimp.math.AIMat4, t: Float): cn.chen.assimp.math.AIMat4 {
+    private fun lerpMatrix(a: AIMat4, b: AIMat4, t: Float): AIMat4 {
         val r = FloatArray(16)
         for (i in 0..15) r[i] = a.m[i] * (1f - t) + b.m[i] * t
-        return cn.chen.assimp.math.AIMat4(r)
+        return AIMat4(r)
     }
     val currentStateName get() = currentState?.name
     val isTransitioning get() = nextState != null

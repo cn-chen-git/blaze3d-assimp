@@ -6,5 +6,11 @@ common --java_language_version=25
 common --tool_java_language_version=25
 common --symlink_prefix=mod/
 common --experimental_convenience_symlinks=ignore
-build --jobs=auto
-build --worker_sandboxing
+build --jobs=32
+build --worker_sandboxing=false
+build --reuse_sandbox_directories
+build --disk_cache=/home/chen/.cache/bazel-disk
+build --experimental_worker_multiplex
+build --worker_max_instances=4
+build --strategy=Javac=worker
+startup --host_jvm_args=-Xmx4g
