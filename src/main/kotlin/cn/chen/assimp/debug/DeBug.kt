@@ -49,6 +49,20 @@ object DeBug {
                     renderer.info().forEach { msg(c.source, "§7$it") }; 1
                 })
                 .then(ClientCommands.literal("unload").executes { c -> renderer.unload(); modelPath = ""; msg(c.source, "§c已卸载"); 1 })
+                .then(ClientCommands.literal("fx")
+                    .then(ClientCommands.literal("lights").then(ClientCommands.argument("on", IntegerArgumentType.integer(0, 1)).executes { c ->
+                        renderer.dynamicLights = IntegerArgumentType.getInteger(c, "on") != 0; msg(c.source, "§a动态光: ${renderer.dynamicLights}"); 1
+                    }))
+                    .then(ClientCommands.literal("player").then(ClientCommands.argument("on", IntegerArgumentType.integer(0, 1)).executes { c ->
+                        renderer.playerReflection = IntegerArgumentType.getInteger(c, "on") != 0; msg(c.source, "§a玩家反射: ${renderer.playerReflection}"); 1
+                    }))
+                    .then(ClientCommands.literal("rim").then(ClientCommands.argument("v", FloatArgumentType.floatArg(0f, 4f)).executes { c ->
+                        renderer.rimIntensity = FloatArgumentType.getFloat(c, "v"); msg(c.source, "§a边缘光: ${renderer.rimIntensity}"); 1
+                    }))
+                    .then(ClientCommands.literal("bloom").then(ClientCommands.argument("v", FloatArgumentType.floatArg(0f, 8f)).executes { c ->
+                        renderer.bloomIntensity = FloatArgumentType.getFloat(c, "v"); msg(c.source, "§abloom 强度: ${renderer.bloomIntensity}"); 1
+                    }))
+                )
             )
         }
     }

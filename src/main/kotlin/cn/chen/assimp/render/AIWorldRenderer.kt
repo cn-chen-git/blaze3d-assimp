@@ -23,6 +23,12 @@ class AIWorldRenderer {
     private val shadowBuffer = AIShadowBuffer()
     private val shadowMap = AIShadowMap()
     private val environmentMap = AIEnvironmentMap()
+    private val lightsBuffer = AILightsBuffer()
+    private val lightCollector = AILightCollector()
+    var playerReflection = true
+    var dynamicLights = true
+    var rimIntensity = 0.6f
+    var bloomIntensity = 2.0f
     private var compiled: AIBatchCompiler.Result? = null
     private var lastTime = System.nanoTime()
     private val tmpShadowCenter = Vector3f()
@@ -51,6 +57,8 @@ class AIWorldRenderer {
             shadowBuffer.init()
             shadowMap.init()
             environmentMap.init()
+            lightsBuffer.init()
+            lightCollector.invalidate()
         }
     }
     fun unload() {
@@ -60,6 +68,8 @@ class AIWorldRenderer {
         shadowBuffer.release()
         shadowMap.release()
         environmentMap.release()
+        lightsBuffer.release()
+        lightCollector.invalidate()
         compiled?.close()
         compiled = null
         texReg.release()
@@ -89,13 +99,28 @@ class AIWorldRenderer {
         objectBuffer.update(objectMat, bl, sl)
         val needShadow = checkShadowDirty(tmpShadowCenter, shadowRadius, hasAnim)
         if (needShadow) shadowBuffer.update(tmpShadowCenter, shadowRadius, sqrt(instance.distanceSq(cam.x, cam.y, cam.z)).toFloat(), SHADOW_LIGHT, shadowMap.size)
+        updateLights(tmpShadowCenter, tmpCamVec, mc, bl, sl)
         val encoder = RenderSystem.getDevice().createCommandEncoder()
         boneBuffer.flush(encoder)
         objectBuffer.flush(encoder)
         shadowBuffer.flush(encoder)
+        lightsBuffer.flush(encoder)
         encoder.submit()
         if (needShadow) AICascadeShadowRenderer.render(c.batches, c.passRanges, c.mergedVbo, boneBuffer.slice(), objectBuffer.slice(), shadowBuffer.slice(), shadowMap, materialBuffer)
-        AIGpuPassRenderer.render(c.batches, c.passRanges, c.mergedVbo, modelMat, objectMat, tmpCamVec, instance.scale, boneBuffer.slice(), objectBuffer.slice(), shadowBuffer.slice(), shadowMap.view(), environmentMap, materialBuffer)
+        AIGpuPassRenderer.render(c.batches, c.passRanges, c.mergedVbo, modelMat, objectMat, tmpCamVec, instance.scale, boneBuffer.slice(), objectBuffer.slice(), shadowBuffer.slice(), shadowMap.view(), environmentMap, materialBuffer, lightsBuffer.slice())
+    }
+    private val tmpPlayerPos = Vector3f()
+    private val tmpPlayerColor = Vector3f()
+    private val tmpEmptyLights = emptyList<AILightCollector.Light>()
+    private fun updateLights(modelCenter: Vector3f, camVec: Vector3f, mc: Minecraft, blockLight: Int, skyLight: Int) {
+        val lights = if (dynamicLights) lightCollector.collect(modelCenter, 10) else tmpEmptyLights
+        val player = mc.player
+        val pEnabled = playerReflection && player != null
+        if (player != null) tmpPlayerPos.set(player.x.toFloat(), player.y.toFloat(), player.z.toFloat()) else tmpPlayerPos.set(camVec)
+        val bSky = skyLight.toFloat() / 15f; val bBlock = blockLight.toFloat() / 15f
+        val warm = 0.55f + bBlock * 0.45f; val cool = 0.4f + bSky * 0.6f
+        tmpPlayerColor.set(0.55f * warm + 0.45f * cool * 0.9f, 0.52f * warm + 0.45f * cool * 0.95f, 0.5f * warm + 0.45f * cool)
+        lightsBuffer.update(camVec, pEnabled, tmpPlayerPos, tmpPlayerColor, 1.8f, 0.6f, lights, rimIntensity, bloomIntensity)
     }
     private fun checkShadowDirty(center: Vector3f, radius: Float, hasAnim: Boolean): Boolean {
         shadowFrame++
@@ -117,6 +142,7 @@ class AIWorldRenderer {
             lines.add("bound center=(${c.boundCenter.x},${c.boundCenter.y},${c.boundCenter.z}) radius=${c.boundRadius}")
         }
         lines.add("pos=${instance.pos} scale=${instance.scale} rot=${instance.rot}")
+        lines.add("fx: lights=$dynamicLights player=$playerReflection rim=$rimIntensity bloom=$bloomIntensity")
         s?.materials?.forEachIndexed { i, m ->
             lines.add("  mat[$i] ${m.name} alpha=${m.alphaMode} emissive=${m.emissiveFactor.toList()} ds=${m.doubleSided} tex=${m.textures.keys}")
         }

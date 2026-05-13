@@ -22,6 +22,14 @@ layout(std140) uniform ShadowData {
     vec4 ShadowSplits;
     vec4 ShadowParams;
 };
+layout(std140) uniform DynamicLights {
+    vec4 LightInfo;
+    vec4 CamPosW;
+    vec4 PlayerPosW;
+    vec4 PlayerColor;
+    vec4 LightPos[8];
+    vec4 LightCol[8];
+};
 in float sphericalVertexDistance;
 in float cylindricalVertexDistance;
 in vec4 vertexColor;
@@ -33,6 +41,7 @@ in vec3 fragTangent;
 in vec3 fragBitangent;
 in vec3 fragPos;
 in vec3 fragWorldPos;
+in vec3 fragWorldNormal;
 out vec4 fragColor;
 const float PI = 3.14159265359;
 const float MIN_ROUGHNESS = 0.045;
@@ -119,6 +128,46 @@ struct PbrParams {
     float sheenRoughness;
     float transmission;
 };
+float pointAtten(float distSq, float range) {
+    float r2 = max(range * range, 1e-4);
+    float k = clamp(1.0 - distSq / r2, 0.0, 1.0);
+    return k * k / (1.0 + distSq);
+}
+vec3 evalPointLight(PbrParams p, vec3 Lw, vec3 Nw, float distSq, float range, vec3 lightColor, float intensity) {
+    float falloff = pointAtten(distSq, range);
+    if (falloff < 1e-4) return vec3(0.0);
+    vec3 Lview = normalize(mat3(ModelViewMat) * Lw);
+    float ndl = max(dot(p.N, Lview), 0.0);
+    if (ndl < 1e-4) return vec3(0.0);
+    vec3 H = normalize(p.V + Lview);
+    float ndh = max(dot(p.N, H), 0.0);
+    float vdh = max(dot(p.V, H), 0.0);
+    float D = D_GGX(ndh, p.a2);
+    float Vt = V_SmithGGXCorrelated(p.ndv, ndl, p.a2);
+    vec3 F = F_Schlick(vdh, p.f0);
+    vec3 spec = D * Vt * F;
+    vec3 kD = (1.0 - F) * (1.0 - p.metallic);
+    vec3 diff = kD * p.albedo / PI;
+    return (diff + spec) * ndl * lightColor * intensity * falloff;
+}
+vec3 evalPlayerReflection(PbrParams p, vec3 Nw, vec3 worldPos, vec3 camW, vec3 playerW, vec3 playerColor, float playerR, float playerIntensity) {
+    vec3 Vw = normalize(camW - worldPos);
+    vec3 Rw = reflect(-Vw, Nw);
+    vec3 toP = playerW - worldPos;
+    float distP = length(toP);
+    if (distP < 1e-3 || distP > 24.0) return vec3(0.0);
+    vec3 toPn = toP / distP;
+    float angCos = dot(toPn, Rw);
+    if (angCos < 0.0) return vec3(0.0);
+    float sphereCos = clamp(playerR / max(distP, playerR), 0.0, 0.9999);
+    float k = smoothstep(sphereCos, 1.0, angCos);
+    float sharp = mix(6.0, 128.0, clamp(1.0 - p.roughness, 0.0, 1.0));
+    float glossy = pow(max(angCos, 0.0), sharp);
+    float strength = (k * 0.5 + glossy * 0.5) * playerIntensity;
+    float distAtten = 1.0 / (1.0 + distP * 0.08);
+    vec3 F = F_SchlickR(p.ndv, p.f0, p.roughness);
+    return playerColor * F * p.metallic * strength * distAtten * (1.0 - p.roughness * 0.6);
+}
 vec3 evalDirectLight(PbrParams p, vec3 L, vec3 lightColor, float intensity) {
     float ndl = max(dot(p.N, L), 0.0);
     if (ndl < 1e-4) return vec3(0.0);
@@ -225,7 +274,30 @@ void main() {
     vec3 ambient = ibl * mcLight;
     vec3 color = Lo + ambient;
     if (p.transmission > 0.0) color += irradiance * p.albedo * p.transmission * (1.0 - metallic) * mcLight;
-    vec2 emPx = 1.5 / vec2(textureSize(EmissiveMap, 0));
+    int lightCount = int(LightInfo.x);
+    if (lightCount > 0) {
+        vec3 Nw = normalize(fragWorldNormal);
+        for (int i = 0; i < 8; ++i) {
+            if (i >= lightCount) break;
+            vec3 Lw = LightPos[i].xyz - fragWorldPos;
+            float d2 = dot(Lw, Lw);
+            float range = LightPos[i].w;
+            vec3 Lw_n = Lw * inversesqrt(max(d2, 1e-6));
+            color += evalPointLight(p, Lw_n, Nw, d2, range, LightCol[i].rgb, LightCol[i].a);
+        }
+    }
+    if (LightInfo.y > 0.5 && p.metallic > 0.01) {
+        vec3 Nw = normalize(fragWorldNormal);
+        color += evalPlayerReflection(p, Nw, fragWorldPos, CamPosW.xyz, PlayerPosW.xyz, PlayerColor.rgb, PlayerPosW.w, PlayerColor.a);
+    }
+    float rimIntensity = LightInfo.w;
+    if (rimIntensity > 0.001) {
+        float rim = pow(1.0 - p.ndv, 3.0);
+        vec3 rimColor = mix(vec3(0.55, 0.7, 1.0), vec3(1.0), p.metallic);
+        color += rim * rimColor * rimIntensity * mix(0.4, 1.4, p.metallic) * (0.4 + lightLuma * 0.6);
+    }
+    float bloomScale = max(LightInfo.z, 1.0);
+    vec2 emPx = (1.5 + bloomScale * 0.6) / vec2(textureSize(EmissiveMap, 0));
     vec3 emCenter = toLinear(texture(EmissiveMap, texCoord0).rgb);
     vec3 emHalo = emCenter * 0.36;
     emHalo += toLinear(texture(EmissiveMap, texCoord0 + vec2(emPx.x, 0.0)).rgb) * 0.12;
@@ -240,7 +312,7 @@ void main() {
     vec3 emissive = emHalo * MatEmissiveStrength.rgb * emStr;
     float emLuma = dot(emissive, vec3(0.2126, 0.7152, 0.0722));
     if (emLuma > 0.001) {
-        color += emissive * 3.5;
+        color += emissive * (3.5 + bloomScale * 1.5);
         alpha = min(alpha + emLuma * 0.5, 1.0);
     }
     color = mix(toLinear(overlayColor.rgb), color, overlayColor.a);

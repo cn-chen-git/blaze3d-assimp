@@ -31,22 +31,25 @@ out vec3 fragTangent;
 out vec3 fragBitangent;
 out vec3 fragPos;
 out vec3 fragWorldPos;
+out vec3 fragWorldNormal;
 void main() {
     float totalWeight = BoneWeights.x + BoneWeights.y + BoneWeights.z + BoneWeights.w;
     vec4 localPos;
     vec4 worldPos;
     vec3 skinnedNormal;
     vec3 skinnedTangent;
+    mat3 skinNorm;
     if (totalWeight > 0.01) {
         mat4 skinMat = computeSkinMatrix(BoneIds, BoneWeights);
         localPos = skinMat * vec4(Position, 1.0);
         worldPos = ModelViewMat * localPos;
-        mat3 skinNorm = mat3(skinMat);
+        skinNorm = mat3(skinMat);
         skinnedNormal = normalize(mat3(ModelViewMat) * skinNorm * Normal);
         skinnedTangent = normalize(mat3(ModelViewMat) * skinNorm * Tangent.xyz);
     } else {
         localPos = vec4(Position, 1.0);
         worldPos = ModelViewMat * localPos;
+        skinNorm = mat3(1.0);
         skinnedNormal = normalize(mat3(ModelViewMat) * Normal);
         skinnedTangent = normalize(mat3(ModelViewMat) * Tangent.xyz);
     }
@@ -56,6 +59,7 @@ void main() {
     fragTangent = skinnedTangent;
     fragBitangent = cross(skinnedNormal, skinnedTangent) * Tangent.w;
     fragWorldPos = (ObjectToWorld * localPos).xyz;
+    fragWorldNormal = normalize(mat3(ObjectToWorld) * (skinNorm * Normal));
     sphericalVertexDistance = fog_spherical_distance(worldPos.xyz);
     cylindricalVertexDistance = fog_cylindrical_distance(worldPos.xyz);
     vertexColor = Color;
