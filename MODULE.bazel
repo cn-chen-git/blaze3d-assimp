@@ -59,7 +59,7 @@ maven.install(
 use_repo(maven, "maven")
 minecraft = use_extension("//repo:minecraft_jar.bzl", "minecraft")
 minecraft.minecraft_jar(
-    version = "26.2-snapshot-6",
+    version = "26.2-snapshot-7",
     type = "client",
     assets = True,
     mapping = False,

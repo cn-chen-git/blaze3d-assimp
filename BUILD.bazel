@@ -25,8 +25,8 @@ kt_kotlinc_options(
     jvm_target = "25",
 )
 _MC_DEPS = [
-    "@minecraft//:26.2-snapshot-6_client",
-    "@minecraft//:26.2-snapshot-6_client_libraries",
+    "@minecraft//:26.2-snapshot-7_client",
+    "@minecraft//:26.2-snapshot-7_client_libraries",
     "@maven//:org_joml_joml",
 ]
 kt_jvm_library(
@@ -135,8 +135,8 @@ java_binary(
     name = "client",
     srcs = [],
     data = [
-        "@minecraft_assets//:assets_26.2-snapshot-6",
-        "@minecraft_assets//:versions/26.2-snapshot-6",
+        "@minecraft_assets//:assets_26.2-snapshot-7",
+        "@minecraft_assets//:versions/26.2-snapshot-7",
     ],
     env = {
         "LANG": "en_US.UTF8",
@@ -144,10 +144,10 @@ java_binary(
     jvm_flags = [
         "-Dfabric.development=true",
         "-Dfabric.log.disableAnsi=false",
-        "-Ddev.launch.version=26.2-snapshot-6",
+        "-Ddev.launch.version=26.2-snapshot-7",
         "-Ddev.launch.type=client",
         "-Ddev.launch.mainClass=net.fabricmc.loader.impl.launch.knot.KnotClient",
-        "-Ddev.launch.assetsPath=$(rootpath @minecraft_assets//:versions/26.2-snapshot-6)",
+        "-Ddev.launch.assetsPath=$(rootpath @minecraft_assets//:versions/26.2-snapshot-7)",
         "-Xmx4G",
     ],
     main_class = "top.fifthlight.fabazel.devlaunchwrapper.DevLaunchWrapper",
@@ -156,7 +156,7 @@ java_binary(
         "@maven//:org_ow2_asm_asm",
         "@maven//:org_ow2_asm_asm_tree",
         "@maven//:org_ow2_asm_asm_commons",
-        "@minecraft//:26.2-snapshot-6_client_libraries",
+        "@minecraft//:26.2-snapshot-7_client_libraries",
         ":mod",
         "@maven//:net_fabricmc_fabric_loader",
         "@maven//:net_fabricmc_fabric_api_fabric_api",
