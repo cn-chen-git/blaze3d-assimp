@@ -36,8 +36,8 @@ layout(std140) uniform WorldProbe {
     vec4 ProbeOrigin;
     vec4 ProbeFlags;
     vec4 ProbeSun;
-    vec4 ProbePlayer;
-    vec4 ProbePlayerExt;
+    vec4 ProbeSkyTint;
+    vec4 ProbeSunTint;
 };
 uniform sampler2D ProbeMap;
 in float sphericalVertexDistance;
@@ -149,33 +149,24 @@ float marchBlockShadow(vec3 worldPos) {
     }
     return mix(1.0, 1.0 - ProbeFlags.y * 0.5, float(hits) / 2.0);
 }
-float capsuleSunShadow(vec3 P) {
-    if (ProbeFlags.z < 0.5) return 1.0;
-    vec3 L = ProbeSun.xyz;
-    vec3 A = ProbePlayer.xyz;
-    vec3 segDir = vec3(0.0, ProbePlayerExt.y, 0.0);
-    float r = ProbePlayer.w;
-    vec3 AP = P - A;
-    float abLen2 = max(dot(segDir, segDir), 1e-5);
-    float lAb = dot(L, segDir);
-    float apAb = dot(AP, segDir);
-    float lAp = dot(L, AP);
-    float det = abLen2 - lAb * lAb;
-    float t, s;
-    if (det > 1e-4) {
-        t = (apAb * lAb - lAp * abLen2) / det;
-        s = (apAb - t * lAb) / abLen2;
-    } else { t = -lAp; s = 0.0; }
-    s = clamp(s, 0.0, 1.0);
-    t = clamp(t, 0.0, 40.0);
-    if (t < 0.05) return 1.0;
-    vec3 closestR = P + L * t;
-    vec3 closestS = A + segDir * s;
-    float d = length(closestR - closestS);
-    if (d > r * 2.5) return 1.0;
-    float falloff = 1.0 / (1.0 + t * 0.05);
-    float k = smoothstep(r * 2.5, r * 0.4, d);
-    return 1.0 - 0.65 * k * falloff;
+float voxelAO(vec3 worldPos, vec3 N) {
+    if (ProbeFlags.x < 0.5) return 1.0;
+    float w = 0.0; float occ = 0.0;
+    for (int i = 0; i < 6; ++i) {
+        vec3 o = vec3(0.0);
+        if (i == 0) o.x = 1.0; else if (i == 1) o.x = -1.0;
+        else if (i == 2) o.y = 1.0; else if (i == 3) o.y = -1.0;
+        else if (i == 4) o.z = 1.0; else o.z = -1.0;
+        float k = max(dot(o, N), 0.0);
+        if (k > 0.0) { occ += probeSample(worldPos + o).b * k; w += k; }
+    }
+    return 1.0 - clamp(occ / max(w, 1e-3) * 0.55, 0.0, 1.0);
+}
+float specularAA(vec3 N, float a2) {
+    vec3 dnx = dFdx(N); vec3 dny = dFdy(N);
+    float variance = dot(dnx, dnx) + dot(dny, dny);
+    float kernel = min(variance * 0.25, 0.18);
+    return clamp(a2 + kernel, MIN_ROUGHNESS * MIN_ROUGHNESS, 1.0);
 }
 vec3 burleyDiffuse(vec3 albedo, float ndl, float ndv, float vdh, float roughness) {
     float fd90 = 0.5 + 2.0 * vdh * vdh * roughness;
@@ -328,34 +319,46 @@ void main() {
     p.sheenColor = sheenEnabled > 0.5 ? MatSheenClearcoat.rgb : vec3(0.0);
     p.sheenRoughness = sheenEnabled > 0.5 ? clamp(p.roughness, MIN_ROUGHNESS, 1.0) : 0.0;
     p.transmission = transmission;
+    vec3 Nw = normalize(fragWorldNormal);
+    float ao = voxelAO(fragWorldPos, Nw);
+    p.a2 = specularAA(p.N, p.a2);
+    float wetness = ProbeFlags.z * max(Nw.y, 0.0) * clamp(ProbeSkyTint.a, 0.0, 1.0);
+    roughness = mix(roughness, max(roughness * 0.4, MIN_ROUGHNESS), wetness);
+    p.roughness = roughness;
+    p.a2 = mix(p.a2, max(roughness * roughness, MIN_ROUGHNESS * MIN_ROUGHNESS), wetness);
+    p.f0 = mix(p.f0, vec3(max(p.f0.r, 0.08)), wetness * 0.6);
     vec4 probe = probeSample(fragWorldPos);
     vec2 dynamicLM = vec2(clamp(probe.r * 1.07, 0.0, 1.0), clamp(probe.g * 1.07, 0.0, 1.0));
     vec3 dynMcLight = sample_lightmap(Sampler2, ivec2(dynamicLM * 240.0)).rgb;
     vec3 staticMcLight = lightMapColor.rgb;
-    vec3 mcLightSrgb = mix(staticMcLight, dynMcLight, step(0.5, ProbeFlags.x + ProbeFlags.z));
-    vec3 mcLight = toLinear(mcLightSrgb);
+    vec3 mcLightSrgb = mix(staticMcLight, dynMcLight, step(0.5, ProbeFlags.x));
+    vec3 mcLightLin = toLinear(mcLightSrgb);
+    vec3 floorTint = toLinear(ProbeSkyTint.rgb * 0.045 + vec3(0.02));
+    vec3 mcLight = max(mcLightLin, floorTint);
     float lightLuma = dot(mcLight, vec3(0.2126, 0.7152, 0.0722));
     vec3 L0 = normalize(Light0_Direction);
     vec3 L1 = normalize(Light1_Direction);
-    vec3 sunColor = vec3(1.0, 0.95, 0.88);
-    vec3 fillColor = vec3(0.5, 0.6, 0.85);
+    vec3 sunColor = toLinear(ProbeSunTint.rgb);
+    float sunInt = ProbeSunTint.a;
+    vec3 fillColor = toLinear(ProbeSkyTint.rgb);
+    float skyFac = ProbeSkyTint.a;
     float shadow = sampleShadow(fragWorldPos, length(fragPos));
     float blockShadow = marchBlockShadow(fragWorldPos);
-    float playerShadow = capsuleSunShadow(fragWorldPos);
-    float sunMask = shadow * blockShadow * playerShadow;
-    vec3 Lo = evalDirectLight(p, L0, sunColor, 3.5 * lightLuma * sunMask);
-    Lo += evalDirectLight(p, L1, fillColor, 1.2 * lightLuma);
+    float sunMask = shadow * blockShadow;
+    vec3 Lo = evalDirectLight(p, L0, sunColor, 3.0 * lightLuma * sunInt * sunMask);
+    Lo += evalDirectLight(p, L1, fillColor, 1.1 * lightLuma * skyFac);
     vec3 irradiance = sampleIrradiance(p.N);
     vec3 R = reflect(-p.V, p.N);
     vec3 prefiltered = samplePrefilter(R, roughness);
     vec2 brdf = texture(BrdfLut, vec2(p.ndv, roughness)).rg;
     vec3 ibl = evalIBL(p, irradiance, prefiltered, brdf);
-    vec3 ambient = ibl * mcLight;
-    vec3 color = Lo + ambient;
+    vec3 skyTint = mix(fillColor, sunColor, max(Nw.y, 0.0));
+    vec3 fakeAmbient = (skyTint * (0.18 + 0.32 * skyFac) + p.albedo * 0.03) * mcLight;
+    vec3 ambient = (ibl * mcLight + fakeAmbient) * ao;
+    vec3 color = Lo * ao + ambient;
     if (p.transmission > 0.0) color += irradiance * p.albedo * p.transmission * (1.0 - metallic) * mcLight;
     int lightCount = int(LightInfo.x);
     if (lightCount > 0) {
-        vec3 Nw = normalize(fragWorldNormal);
         for (int i = 0; i < 8; ++i) {
             if (i >= lightCount) break;
             vec3 Lw = LightPos[i].xyz - fragWorldPos;
@@ -366,7 +369,6 @@ void main() {
         }
     }
     if (LightInfo.y > 0.5 && p.metallic > 0.01) {
-        vec3 Nw = normalize(fragWorldNormal);
         color += evalPlayerReflection(p, Nw, fragWorldPos, CamPosW.xyz, PlayerPosW.xyz, PlayerColor.rgb, PlayerPosW.w, PlayerColor.a);
     }
     float rimIntensity = LightInfo.w;

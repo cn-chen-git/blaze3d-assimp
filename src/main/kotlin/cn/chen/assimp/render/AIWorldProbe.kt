@@ -26,6 +26,11 @@ class AIWorldProbe {
     private var uboMem: ByteBuffer? = null
     private var uboDirty = false
     private val sunDir = Vector3f(0.35f, 1f, 0.25f).normalize()
+    private val skyTint = Vector3f(0.55f, 0.7f, 1.0f)
+    private val sunTint = Vector3f(1f, 0.95f, 0.88f)
+    private var skyFactor = 1f
+    private var sunIntensity = 1f
+    private var rainLevel = 0f
     fun init() {
         release()
         val img = NativeImage(NativeImage.Format.RGBA, TEX_DIM, TEX_DIM, false)
@@ -39,7 +44,10 @@ class AIWorldProbe {
         initialized = true
         uboDirty = false
     }
-    fun rebuild(modelCenter: Vector3f, playerPos: Vector3f?, playerEnabled: Boolean, shadowEnabled: Boolean, shadowStrength: Float) {
+    fun setEnvironment(sky: Vector3f, sun: Vector3f, skyFac: Float, sunInt: Float, rain: Float) {
+        skyTint.set(sky); sunTint.set(sun); skyFactor = skyFac; sunIntensity = sunInt; rainLevel = rain
+    }
+    fun rebuild(modelCenter: Vector3f, shadowEnabled: Boolean, shadowStrength: Float) {
         if (!initialized) return
         frame++
         val dx = modelCenter.x - lastCenter.x; val dy = modelCenter.y - lastCenter.y; val dz = modelCenter.z - lastCenter.z
@@ -49,7 +57,7 @@ class AIWorldProbe {
             lastFrame = frame; lastCenter.set(modelCenter)
             sampleVoxels(modelCenter)
         }
-        writeUbo(playerPos, playerEnabled, shadowEnabled, shadowStrength)
+        writeUbo(shadowEnabled, shadowStrength)
     }
     private fun sampleVoxels(modelCenter: Vector3f) {
         val img = image ?: return
@@ -70,14 +78,14 @@ class AIWorldProbe {
         }
         (Minecraft.getInstance().textureManager.getTexture(id) as? DynamicTexture)?.upload()
     }
-    private fun writeUbo(playerPos: Vector3f?, playerEnabled: Boolean, shadowEnabled: Boolean, shadowStrength: Float) {
+    private fun writeUbo(shadowEnabled: Boolean, shadowStrength: Float) {
         val buf = uboMem ?: return
         buf.clear()
         buf.putFloat(origin.x).putFloat(origin.y).putFloat(origin.z).putFloat(1f)
-        buf.putFloat(if (shadowEnabled) 1f else 0f).putFloat(shadowStrength).putFloat(if (playerEnabled && playerPos != null) 1f else 0f).putFloat(GRID.toFloat())
+        buf.putFloat(if (shadowEnabled) 1f else 0f).putFloat(shadowStrength).putFloat(rainLevel.coerceIn(0f, 1f)).putFloat(GRID.toFloat())
         buf.putFloat(sunDir.x).putFloat(sunDir.y).putFloat(sunDir.z).putFloat(0.6f)
-        if (playerPos != null) buf.putFloat(playerPos.x).putFloat(playerPos.y).putFloat(playerPos.z).putFloat(0.32f) else buf.putFloat(0f).putFloat(0f).putFloat(0f).putFloat(0f)
-        buf.putFloat(0f).putFloat(1.8f).putFloat(0f).putFloat(0f)
+        buf.putFloat(skyTint.x).putFloat(skyTint.y).putFloat(skyTint.z).putFloat(skyFactor)
+        buf.putFloat(sunTint.x).putFloat(sunTint.y).putFloat(sunTint.z).putFloat(sunIntensity)
         buf.flip()
         uboDirty = true
     }
