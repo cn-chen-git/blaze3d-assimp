@@ -15,13 +15,13 @@ class AITextureRegistry {
     val flatNormalTex: Identifier = Identifier.fromNamespaceAndPath("lwjgl-assimp", "textures/flat_normal.png")
     val defaultMrTex: Identifier = Identifier.fromNamespaceAndPath("lwjgl-assimp", "textures/default_mr.png")
     val blackTex: Identifier = Identifier.fromNamespaceAndPath("lwjgl-assimp", "textures/black.png")
-    private val pbrTypes = arrayOf(AITexType.ALBEDO, AITexType.NORMAL, AITexType.METALLIC_ROUGHNESS, AITexType.EMISSIVE)
+    private val materialTypes = arrayOf(AITexType.ALBEDO, AITexType.NORMAL, AITexType.METALLIC_ROUGHNESS, AITexType.EMISSIVE, AITexType.OCCLUSION, AITexType.SPECULAR, AITexType.HEIGHT, AITexType.OPACITY, AITexType.GLOSSINESS)
     fun register(s: AISceneData, basePath: String) {
         release()
         registerDefaults()
         val tm = Minecraft.getInstance().textureManager
         for ((matIdx, mat) in s.materials.withIndex()) {
-            for (texType in pbrTypes) {
+            for (texType in materialTypes) {
                 val info = mat.getTexture(texType) ?: continue
                 val texPath = info.path
                 try {
@@ -79,7 +79,7 @@ class AITextureRegistry {
     fun hasNormal(matIdx: Int) = texIds.containsKey(TexKey(matIdx, AITexType.NORMAL))
     fun hasMR(matIdx: Int) = texIds.containsKey(TexKey(matIdx, AITexType.METALLIC_ROUGHNESS))
     fun hasEmissive(matIdx: Int) = texIds.containsKey(TexKey(matIdx, AITexType.EMISSIVE))
-    fun hasPbrTextures(matIdx: Int) = hasNormal(matIdx) || hasMR(matIdx) || hasEmissive(matIdx)
+    fun hasMaterialEffects(matIdx: Int) = hasNormal(matIdx) || hasMR(matIdx) || hasEmissive(matIdx)
     fun has(matIdx: Int) = texIds.containsKey(TexKey(matIdx, AITexType.ALBEDO))
     fun hasAlphaPixels(matIdx: Int) = alphaMatIndices.contains(matIdx)
     val size get() = texIds.size

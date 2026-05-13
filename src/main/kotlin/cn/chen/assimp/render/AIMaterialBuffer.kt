@@ -1,6 +1,6 @@
 package cn.chen.assimp.render
 import cn.chen.assimp.core.AISceneData
-import cn.chen.assimp.material.AIPbrMat
+import cn.chen.assimp.material.AIMaterial
 import com.mojang.blaze3d.buffers.GpuBuffer
 import com.mojang.blaze3d.buffers.GpuBufferSlice
 import com.mojang.blaze3d.systems.RenderSystem
@@ -29,7 +29,7 @@ class AIMaterialBuffer {
     fun release() { for (b in buffers) b.close(); buffers.clear() }
     companion object {
         const val MAT_BYTES = 80
-        private fun writeMaterial(buf: ByteBuffer, m: AIPbrMat) {
+        private fun writeMaterial(buf: ByteBuffer, m: AIMaterial) {
             buf.putFloat(m.baseColorFactor.x).putFloat(m.baseColorFactor.y).putFloat(m.baseColorFactor.z).putFloat(m.baseColorFactor.w)
             val es = m.khrExtensions.emissiveStrength?.strength ?: m.emissiveStrength
             buf.putFloat(m.emissiveFactor.getOrElse(0) { 0f }).putFloat(m.emissiveFactor.getOrElse(1) { 0f }).putFloat(m.emissiveFactor.getOrElse(2) { 0f }).putFloat(es)

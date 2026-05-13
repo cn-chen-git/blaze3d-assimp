@@ -14,7 +14,6 @@ import java.util.Optional
 import java.util.OptionalDouble
 object AIGpuPassRenderer {
     private val tmpCenter = Vector3f()
-    private val WHITE_ID = Identifier.fromNamespaceAndPath("lwjgl-assimp", "textures/white.png")
     fun render(
         batches: List<AIGpuBatch>,
         passRanges: Map<AIRenderPass, IntRange>,
@@ -57,23 +56,11 @@ object AIGpuPassRenderer {
             rp.setPipeline(pass.pipeline())
             RenderSystem.bindDefaultUniforms(rp)
             rp.setUniform("DynamicTransforms", transformSlice)
-            if (pass.isPbr && boneSlice != null) rp.setUniform("BoneMatrices", boneSlice)
-            if (pass.isPbr && objectSlice != null) rp.setUniform("ObjectMatrices", objectSlice)
-            if (pass.isPbr && shadowSlice != null) rp.setUniform("ShadowData", shadowSlice)
-            if (pass.isPbr && lightsSlice != null) rp.setUniform("DynamicLights", lightsSlice)
-            if (pass.isPbr) worldProbe?.let { wp -> wp.uboSlice()?.let { rp.setUniform("WorldProbe", it) }; wp.bind(rp) }
+            if ((pass == AIRenderPass.AI_OPAQUE || pass == AIRenderPass.AI_OPAQUE_CULL || pass == AIRenderPass.AI_TRANSLUCENT) && boneSlice != null) rp.setUniform("BoneMatrices", boneSlice)
             rp.setVertexBuffer(0, vboSlice)
             rp.setIndexBuffer(idxBuf, idxType)
-            if (pass.isPbr) {
-                if (shadowView != null) rp.bindTexture("ShadowMap", shadowView, lightSampler)
-                else tm.getTexture(WHITE_ID)?.let { t -> rp.bindTexture("ShadowMap", t.textureView, lightSampler) }
-                environmentMap?.bind(rp)
-            }
             var lastTex: Identifier? = null
             var lastNorm: Identifier? = null
-            var lastMR: Identifier? = null
-            var lastEmissive: Identifier? = null
-            var lastMat = -1
             for (i in range) {
                 val batch = batches[i]
                 if (!isBatchVisible(batch, objectMat, camPos, camLook, scale)) continue
@@ -84,22 +71,10 @@ object AIGpuPassRenderer {
                     rp.bindTexture("Sampler2", lightView, lightSampler)
                     lastTex = batch.texId
                 }
-                if (pass.isPbr) {
-                    if (batch.matIdx != lastMat) {
-                        materialBuffer?.let { rp.setUniform("MaterialFactors", it.slice(batch.matIdx)) }
-                        lastMat = batch.matIdx
-                    }
+                if (pass == AIRenderPass.AI_OPAQUE || pass == AIRenderPass.AI_OPAQUE_CULL || pass == AIRenderPass.AI_TRANSLUCENT) {
                     if (batch.normalMapId != lastNorm) {
                         batch.normalMapId?.let { id -> tm.getTexture(id)?.let { t -> rp.bindTexture("NormalMap", t.textureView, t.sampler) } }
                         lastNorm = batch.normalMapId
-                    }
-                    if (batch.mrMapId != lastMR) {
-                        batch.mrMapId?.let { id -> tm.getTexture(id)?.let { t -> rp.bindTexture("MetallicRoughnessMap", t.textureView, t.sampler) } }
-                        lastMR = batch.mrMapId
-                    }
-                    if (batch.emissiveMapId != lastEmissive) {
-                        batch.emissiveMapId?.let { id -> tm.getTexture(id)?.let { t -> rp.bindTexture("EmissiveMap", t.textureView, t.sampler) } }
-                        lastEmissive = batch.emissiveMapId
                     }
                 }
                 rp.drawIndexed(batch.quadCount * 6, 1, 0, batch.baseVertex, 0)
@@ -122,7 +97,7 @@ object AIGpuPassRenderer {
     }
     private val PASS_ORDER = arrayOf(
         AIRenderPass.OPAQUE_CULL, AIRenderPass.OPAQUE, AIRenderPass.EMISSIVE, AIRenderPass.TRANSLUCENT,
-        AIRenderPass.PBR_OPAQUE_CULL, AIRenderPass.PBR_OPAQUE, AIRenderPass.PBR_TRANSLUCENT
+        AIRenderPass.AI_OPAQUE_CULL, AIRenderPass.AI_OPAQUE, AIRenderPass.AI_TRANSLUCENT
     )
     private const val BATCH_CULL_PADDING = 64.0f
     private const val BEHIND_CAM_PADDING = 4.0f

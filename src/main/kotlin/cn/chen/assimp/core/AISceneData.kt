@@ -1,9 +1,9 @@
 package cn.chen.assimp.core
-import cn.chen.assimp.material.AIPbrMat
+import cn.chen.assimp.material.AIMaterial
 import cn.chen.assimp.material.AIEmbeddedTex
 class AISceneData(
     val meshes: List<AIMeshData>,
-    val materials: List<AIPbrMat>,
+    val materials: List<AIMaterial>,
     val animations: List<AIAnimClip>,
     val rootNode: AINodeGraph,
     val skeleton: AIBonePose?,

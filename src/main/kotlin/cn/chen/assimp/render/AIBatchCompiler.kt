@@ -25,7 +25,7 @@ class AIBatchCompiler(private val texReg: AITextureRegistry) {
         fun close() = mergedVbo.close()
     }
     private data class BatchKey(val texId: Identifier, val normalId: Identifier?, val mrId: Identifier?, val emissiveId: Identifier?, val pass: AIRenderPass, val doubleSided: Boolean, val matIdx: Int)
-    private class CollectedMesh(val key: BatchKey, val isPbr: Boolean) {
+    private class CollectedMesh(val key: BatchKey, val usesAiVertexFormat: Boolean) {
         val verts = mutableListOf<FloatArray>()
         val aabbMin = Vector3f(Float.MAX_VALUE)
         val aabbMax = Vector3f(-Float.MAX_VALUE)
@@ -37,7 +37,7 @@ class AIBatchCompiler(private val texReg: AITextureRegistry) {
         val overlay = OverlayTexture.NO_OVERLAY
         val overlayU = (overlay and 0xFFFF).toShort()
         val overlayV = ((overlay shr 16) and 0xFFFF).toShort()
-        val lightBits = Float.fromBits((0xF0.toShort().toInt() shl 16) or (0xF0.toShort().toInt() and 0xFFFF))
+        val lightBits = Float.fromBits(0xF000F0)
         val overlayBits = Float.fromBits((overlayV.toInt() shl 16) or (overlayU.toInt() and 0xFFFF))
         val globalMin = Vector3f(Float.MAX_VALUE); val globalMax = Vector3f(-Float.MAX_VALUE)
         fun walk(node: AINodeGraph, parent: AIMat4) {
@@ -52,24 +52,24 @@ class AIBatchCompiler(private val texReg: AITextureRegistry) {
                 val bc = mat?.baseColorFactor
                 val br = bc?.x ?: 1f; val bg = bc?.y ?: 1f; val bb = bc?.z ?: 1f; val ba = bc?.w ?: 1f
                 val ds = mat?.doubleSided ?: false
-                val usePbr = texReg.hasPbrTextures(mIdx)
+                val useAiPipeline = mesh.hasBones || texReg.hasNormal(mIdx)
                 val hasTransmission = (mat?.khrExtensions?.transmission?.factor ?: 0f) > 0.01f
                 val texHasAlpha = texReg.hasAlphaPixels(mIdx)
                 val blendNeedsAlpha = mat?.alphaMode == AIAlphaMode.BLEND && texHasAlpha
                 val actuallyTranslucent = hasTransmission || ba < 0.99f || blendNeedsAlpha
                 val pass = when {
-                    actuallyTranslucent -> if (usePbr) AIRenderPass.PBR_TRANSLUCENT else AIRenderPass.TRANSLUCENT
-                    ds -> if (usePbr) AIRenderPass.PBR_OPAQUE else AIRenderPass.OPAQUE
-                    else -> if (usePbr) AIRenderPass.PBR_OPAQUE_CULL else AIRenderPass.OPAQUE_CULL
+                    actuallyTranslucent -> if (useAiPipeline) AIRenderPass.AI_TRANSLUCENT else AIRenderPass.TRANSLUCENT
+                    ds -> if (useAiPipeline) AIRenderPass.AI_OPAQUE else AIRenderPass.OPAQUE
+                    else -> if (useAiPipeline) AIRenderPass.AI_OPAQUE_CULL else AIRenderPass.OPAQUE_CULL
                 }
                 val key = BatchKey(
                     texReg[mIdx],
-                    if (usePbr) texReg.getNormal(mIdx) else null,
-                    if (usePbr) texReg.getMR(mIdx) else null,
-                    if (usePbr) texReg.getEmissive(mIdx) else null,
+                    if (useAiPipeline) texReg.getNormal(mIdx) else null,
+                    null,
+                    null,
                     pass, ds, mIdx
                 )
-                val cm = grouped.getOrPut(key) { CollectedMesh(key, usePbr) }
+                val cm = grouped.getOrPut(key) { CollectedMesh(key, useAiPipeline) }
                 val verts = mesh.vertices; val indices = mesh.indices
                 var i = 0
                 while (i + 2 < indices.size) {
@@ -77,12 +77,12 @@ class AIBatchCompiler(private val texReg: AITextureRegistry) {
                         val vtx = verts[indices[i + minOf(k, 2)]]
                         jm.transformPosition(tmp.set(vtx.position.x, vtx.position.y, vtx.position.z))
                         globalMin.min(tmp); globalMax.max(tmp); cm.expandBound(tmp)
-                        val cr = (vtx.color.x * (if (usePbr) 1f else br) * 255f).toInt().coerceIn(0, 255)
-                        val cg = (vtx.color.y * (if (usePbr) 1f else bg) * 255f).toInt().coerceIn(0, 255)
-                        val cb = (vtx.color.z * (if (usePbr) 1f else bb) * 255f).toInt().coerceIn(0, 255)
-                        val ca = (vtx.color.w * (if (usePbr) 1f else ba) * 255f).toInt().coerceIn(0, 255)
+                        val cr = (vtx.color.x * br * 255f).toInt().coerceIn(0, 255)
+                        val cg = (vtx.color.y * bg * 255f).toInt().coerceIn(0, 255)
+                        val cb = (vtx.color.z * bb * 255f).toInt().coerceIn(0, 255)
+                        val ca = (vtx.color.w * ba * 255f).toInt().coerceIn(0, 255)
                         val tn = Vector3f(vtx.normal.x, vtx.normal.y, vtx.normal.z).mul(nm).normalize()
-                        if (usePbr) {
+                        if (useAiPipeline) {
                             val tt = Vector3f(vtx.tangent.x, vtx.tangent.y, vtx.tangent.z).mul(nm).normalize()
                             val handedness = if (Vector3f(tn).cross(tt).dot(Vector3f(vtx.bitangent.x, vtx.bitangent.y, vtx.bitangent.z).mul(nm)) < 0f) -1f else 1f
                             cm.verts.add(floatArrayOf(
@@ -115,13 +115,13 @@ class AIBatchCompiler(private val texReg: AITextureRegistry) {
         val device = RenderSystem.getDevice()
         var totalVerts = 0
         for (cm in sorted) totalVerts += cm.verts.size
-        val mergedBuf = MemoryUtil.memAlloc(totalVerts * PBR_VERT_STRIDE)
+        val mergedBuf = MemoryUtil.memAlloc(totalVerts * AI_VERT_STRIDE)
         var vertOffset = 0; var totalQuads = 0
         val batches = sorted.map { cm ->
             val qc = cm.verts.size / 4
             totalQuads += qc
             val base = vertOffset
-            for (v in cm.verts) writeVert(mergedBuf, v, cm.isPbr)
+            for (v in cm.verts) writeVert(mergedBuf, v, cm.usesAiVertexFormat)
             vertOffset += cm.verts.size
             AIGpuBatch(base, qc, cm.key.texId, cm.key.normalId, cm.key.mrId, cm.key.emissiveId, cm.key.pass, cm.key.doubleSided, cm.key.matIdx, cm.aabbMin, cm.aabbMax)
         }
@@ -135,15 +135,15 @@ class AIBatchCompiler(private val texReg: AITextureRegistry) {
     }
     companion object {
         private const val STD_VERT_STRIDE = 36
-        private const val PBR_VERT_STRIDE = 48
-        private fun writeVert(buf: ByteBuffer, v: FloatArray, pbr: Boolean) {
+        private const val AI_VERT_STRIDE = 48
+        private fun writeVert(buf: ByteBuffer, v: FloatArray, aiVertexFormat: Boolean) {
             buf.putFloat(v[0]).putFloat(v[1]).putFloat(v[2])
             buf.putInt(v[3].toRawBits())
             buf.putFloat(v[4]).putFloat(v[5])
             buf.putInt(v[6].toRawBits())
             buf.putInt(v[7].toRawBits())
             buf.putInt(v[8].toRawBits())
-            if (pbr) {
+            if (aiVertexFormat) {
                 buf.putInt(v[9].toRawBits())
                 buf.putInt(v[10].toRawBits())
                 buf.putInt(v[11].toRawBits())

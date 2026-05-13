@@ -30,8 +30,8 @@ object AICascadeShadowRenderer {
             boneSlice?.let { rp.setUniform("BoneMatrices", it) }
             rp.setUniform("ObjectMatrices", obj)
             rp.setUniform("ShadowData", shadow)
-            drawRange(rp, batches, passRanges[AIRenderPass.PBR_OPAQUE_CULL], materialBuffer, tm)
-            drawRange(rp, batches, passRanges[AIRenderPass.PBR_OPAQUE], materialBuffer, tm)
+            drawRange(rp, batches, passRanges[AIRenderPass.AI_OPAQUE_CULL], materialBuffer, tm)
+            drawRange(rp, batches, passRanges[AIRenderPass.AI_OPAQUE], materialBuffer, tm)
         }
         rp.close()
         encoder.submit()

@@ -6,13 +6,17 @@ import cn.chen.assimp.core.AIMeshData
 import cn.chen.assimp.core.AINodeGraph
 import cn.chen.assimp.core.AISceneData
 import cn.chen.assimp.core.AIAnimClip
+import cn.chen.assimp.core.AIAnimBehaviour
+import cn.chen.assimp.core.AIMeshAnimChannel
+import cn.chen.assimp.core.AIMorphAnimChannel
+import cn.chen.assimp.core.AIMorphKey
 import cn.chen.assimp.core.AIVertex
 import cn.chen.assimp.core.AIMorphTarget
 import cn.chen.assimp.math.AIMat4
 import cn.chen.assimp.math.AIVec3
 import cn.chen.assimp.math.AIVec4
 import cn.chen.assimp.math.AIQuat
-import cn.chen.assimp.material.AIPbrMat
+import cn.chen.assimp.material.AIMaterial as OurMaterial
 import cn.chen.assimp.material.AIAlphaMode
 import cn.chen.assimp.material.AITexInfo
 import cn.chen.assimp.material.AITexType
@@ -30,27 +34,51 @@ import org.lwjgl.assimp.AIColor4D
 import org.lwjgl.assimp.AIMaterial
 import org.lwjgl.assimp.AIMatrix4x4
 import org.lwjgl.assimp.AIMesh
+import org.lwjgl.assimp.AIMeshAnim
+import org.lwjgl.assimp.AIMeshMorphAnim
 import org.lwjgl.assimp.AINode
 import org.lwjgl.assimp.AINodeAnim
 import org.lwjgl.assimp.AIScene
 import org.lwjgl.assimp.AIString
 import org.lwjgl.assimp.AITexture
+import org.lwjgl.assimp.AIUVTransform
+import org.lwjgl.assimp.AIVector3D
+import org.lwjgl.assimp.Assimp.AI_MATKEY_ANISOTROPY_FACTOR
 import org.lwjgl.assimp.Assimp.AI_MATKEY_BASE_COLOR
+import org.lwjgl.assimp.Assimp.AI_MATKEY_BUMPSCALING
+import org.lwjgl.assimp.Assimp.AI_MATKEY_CLEARCOAT_FACTOR
+import org.lwjgl.assimp.Assimp.AI_MATKEY_CLEARCOAT_ROUGHNESS_FACTOR
 import org.lwjgl.assimp.Assimp.AI_MATKEY_COLOR_DIFFUSE
 import org.lwjgl.assimp.Assimp.AI_MATKEY_COLOR_EMISSIVE
+import org.lwjgl.assimp.Assimp.AI_MATKEY_EMISSIVE_INTENSITY
+import org.lwjgl.assimp.Assimp.AI_MATKEY_GLOSSINESS_FACTOR
 import org.lwjgl.assimp.Assimp.AI_MATKEY_GLTF_ALPHACUTOFF
 import org.lwjgl.assimp.Assimp.AI_MATKEY_GLTF_ALPHAMODE
 import org.lwjgl.assimp.Assimp.AI_MATKEY_METALLIC_FACTOR
 import org.lwjgl.assimp.Assimp.AI_MATKEY_NAME
+import org.lwjgl.assimp.Assimp.AI_MATKEY_OPACITY
 import org.lwjgl.assimp.Assimp.AI_MATKEY_REFRACTI
 import org.lwjgl.assimp.Assimp.AI_MATKEY_ROUGHNESS_FACTOR
+import org.lwjgl.assimp.Assimp.AI_MATKEY_SHEEN_COLOR_FACTOR
+import org.lwjgl.assimp.Assimp.AI_MATKEY_SHEEN_ROUGHNESS_FACTOR
+import org.lwjgl.assimp.Assimp.AI_MATKEY_SHININESS
+import org.lwjgl.assimp.Assimp.AI_MATKEY_SPECULAR_FACTOR
+import org.lwjgl.assimp.Assimp.AI_MATKEY_TRANSMISSION_FACTOR
 import org.lwjgl.assimp.Assimp.AI_MATKEY_TWOSIDED
+import org.lwjgl.assimp.Assimp.AI_MATKEY_VOLUME_ATTENUATION_COLOR
+import org.lwjgl.assimp.Assimp.AI_MATKEY_VOLUME_ATTENUATION_DISTANCE
+import org.lwjgl.assimp.Assimp.AI_MATKEY_VOLUME_THICKNESS_FACTOR
+import org.lwjgl.assimp.Assimp._AI_MATKEY_UVTRANSFORM_BASE
+import org.lwjgl.assimp.Assimp.aiAnimBehaviour_CONSTANT
+import org.lwjgl.assimp.Assimp.aiAnimBehaviour_LINEAR
+import org.lwjgl.assimp.Assimp.aiAnimBehaviour_REPEAT
 import org.lwjgl.assimp.Assimp.aiGetErrorString
 import org.lwjgl.assimp.Assimp.aiGetMaterialColor
 import org.lwjgl.assimp.Assimp.aiGetMaterialFloatArray
 import org.lwjgl.assimp.Assimp.aiGetMaterialIntegerArray
 import org.lwjgl.assimp.Assimp.aiGetMaterialString
 import org.lwjgl.assimp.Assimp.aiGetMaterialTexture
+import org.lwjgl.assimp.Assimp.aiGetMaterialUVTransform
 import org.lwjgl.assimp.Assimp.aiImportFile
 import org.lwjgl.assimp.Assimp.aiImportFileFromMemory
 import org.lwjgl.assimp.Assimp.aiProcess_CalcTangentSpace
@@ -66,15 +94,20 @@ import org.lwjgl.assimp.Assimp.aiProcess_Triangulate
 import org.lwjgl.assimp.Assimp.aiProcess_ValidateDataStructure
 import org.lwjgl.assimp.Assimp.aiReleaseImport
 import org.lwjgl.assimp.Assimp.aiReturn_SUCCESS
+import org.lwjgl.assimp.Assimp.aiTextureType_AMBIENT_OCCLUSION
 import org.lwjgl.assimp.Assimp.aiTextureType_BASE_COLOR
 import org.lwjgl.assimp.Assimp.aiTextureType_CLEARCOAT
+import org.lwjgl.assimp.Assimp.aiTextureType_DIFFUSE_ROUGHNESS
+import org.lwjgl.assimp.Assimp.aiTextureType_DISPLACEMENT
 import org.lwjgl.assimp.Assimp.aiTextureType_DIFFUSE
 import org.lwjgl.assimp.Assimp.aiTextureType_EMISSION_COLOR
 import org.lwjgl.assimp.Assimp.aiTextureType_EMISSIVE
+import org.lwjgl.assimp.Assimp.aiTextureType_GLTF_METALLIC_ROUGHNESS
 import org.lwjgl.assimp.Assimp.aiTextureType_HEIGHT
 import org.lwjgl.assimp.Assimp.aiTextureType_LIGHTMAP
 import org.lwjgl.assimp.Assimp.aiTextureType_METALNESS
 import org.lwjgl.assimp.Assimp.aiTextureType_NONE
+import org.lwjgl.assimp.Assimp.aiTextureType_NORMAL_CAMERA
 import org.lwjgl.assimp.Assimp.aiTextureType_NORMALS
 import org.lwjgl.assimp.Assimp.aiTextureType_OPACITY
 import org.lwjgl.assimp.Assimp.aiTextureType_SHEEN
@@ -124,6 +157,13 @@ object AIModelLoader {
         val texCoords0 = mesh.mTextureCoords(0)
         val texCoords1 = mesh.mTextureCoords(1)
         val colors0 = mesh.mColors(0)
+        val indices = mutableListOf<Int>()
+        for (f in 0 until mesh.mNumFaces()) {
+            val face = mesh.mFaces().get(f)
+            val faceIndices = face.mIndices()
+            for (j in 0 until face.mNumIndices()) indices.add(faceIndices.get(j))
+        }
+        val generatedNormals = if (normals == null) generateNormals(positions, numVerts, indices) else null
         val boneWeightsMap = HashMap<Int, MutableList<Pair<Int, Float>>>()
         val numBones = mesh.mNumBones()
         if (numBones > 0) {
@@ -146,6 +186,7 @@ object AIModelLoader {
         val vertices = (0 until numVerts).map { v ->
             val pos = positions.get(v)
             val norm = normals?.get(v)
+            val genNorm = generatedNormals?.get(v)
             val tan = tangents?.get(v)
             val bitan = bitangents?.get(v)
             val uv0 = texCoords0?.get(v)
@@ -161,7 +202,7 @@ object AIModelLoader {
             }
             AIVertex(
                 position = AIVec3(pos.x(), pos.y(), pos.z()),
-                normal = if (norm != null) AIVec3(norm.x(), norm.y(), norm.z()) else AIVec3(0f, 1f, 0f),
+                normal = if (norm != null) AIVec3(norm.x(), norm.y(), norm.z()) else genNorm ?: AIVec3(0f, 1f, 0f),
                 tangent = if (tan != null) AIVec3(tan.x(), tan.y(), tan.z()) else AIVec3(1f, 0f, 0f),
                 bitangent = if (bitan != null) AIVec3(bitan.x(), bitan.y(), bitan.z()) else AIVec3(0f, 0f, 1f),
                 texCoord0 = if (uv0 != null) AIVec3(uv0.x(), uv0.y(), uv0.z()) else AIVec3(),
@@ -170,12 +211,6 @@ object AIModelLoader {
                 boneIds = boneIds,
                 boneWeights = boneWts
             )
-        }
-        val indices = mutableListOf<Int>()
-        for (f in 0 until mesh.mNumFaces()) {
-            val face = mesh.mFaces().get(f)
-            val faceIndices = face.mIndices()
-            for (j in 0 until face.mNumIndices()) indices.add(faceIndices.get(j))
         }
         val morphTargets = parseMorphTargets(mesh, numVerts)
         return AIMeshData(
@@ -187,27 +222,32 @@ object AIModelLoader {
             morphTargets = morphTargets
         )
     }
-    private fun parseMaterials(scene: AIScene): List<AIPbrMat> {
+    private fun parseMaterials(scene: AIScene): List<OurMaterial> {
         val numMats = scene.mNumMaterials()
-        if (numMats == 0) return listOf(AIPbrMat())
+        if (numMats == 0) return listOf(OurMaterial())
         val matPtrs = scene.mMaterials()!!
         return (0 until numMats).map { i ->
             val mat = AIMaterial.create(matPtrs.get(i))
             parseMaterial(mat)
         }
     }
-    private fun parseMaterial(mat: AIMaterial): AIPbrMat {
+    private fun parseMaterial(mat: AIMaterial): OurMaterial {
         val textures = mutableMapOf<AITexType, AITexInfo>()
         extractTexture(mat, aiTextureType_DIFFUSE, AITexType.ALBEDO)?.let { textures[AITexType.ALBEDO] = it }
         extractTexture(mat, aiTextureType_BASE_COLOR, AITexType.ALBEDO)?.let { textures.putIfAbsent(AITexType.ALBEDO, it) }
         extractTexture(mat, aiTextureType_NORMALS, AITexType.NORMAL)?.let { textures[AITexType.NORMAL] = it }
-        extractTexture(mat, aiTextureType_UNKNOWN, AITexType.METALLIC_ROUGHNESS)?.let { textures[AITexType.METALLIC_ROUGHNESS] = it }
+        extractTexture(mat, aiTextureType_NORMAL_CAMERA, AITexType.NORMAL)?.let { textures.putIfAbsent(AITexType.NORMAL, it) }
+        extractTexture(mat, aiTextureType_HEIGHT, AITexType.HEIGHT)?.let { textures[AITexType.HEIGHT] = it }
+        extractTexture(mat, aiTextureType_DISPLACEMENT, AITexType.HEIGHT)?.let { textures.putIfAbsent(AITexType.HEIGHT, it) }
+        extractTexture(mat, aiTextureType_GLTF_METALLIC_ROUGHNESS, AITexType.METALLIC_ROUGHNESS)?.let { textures[AITexType.METALLIC_ROUGHNESS] = it }
+        extractTexture(mat, aiTextureType_UNKNOWN, AITexType.METALLIC_ROUGHNESS)?.let { textures.putIfAbsent(AITexType.METALLIC_ROUGHNESS, it) }
         extractTexture(mat, aiTextureType_METALNESS, AITexType.METALLIC_ROUGHNESS)?.let { textures.putIfAbsent(AITexType.METALLIC_ROUGHNESS, it) }
+        extractTexture(mat, aiTextureType_DIFFUSE_ROUGHNESS, AITexType.GLOSSINESS)?.let { textures[AITexType.GLOSSINESS] = it }
         extractTexture(mat, aiTextureType_LIGHTMAP, AITexType.OCCLUSION)?.let { textures[AITexType.OCCLUSION] = it }
+        extractTexture(mat, aiTextureType_AMBIENT_OCCLUSION, AITexType.OCCLUSION)?.let { textures.putIfAbsent(AITexType.OCCLUSION, it) }
         extractTexture(mat, aiTextureType_EMISSIVE, AITexType.EMISSIVE)?.let { textures[AITexType.EMISSIVE] = it }
         extractTexture(mat, aiTextureType_EMISSION_COLOR, AITexType.EMISSIVE)?.let { textures.putIfAbsent(AITexType.EMISSIVE, it) }
         extractTexture(mat, aiTextureType_SPECULAR, AITexType.SPECULAR)?.let { textures[AITexType.SPECULAR] = it }
-        extractTexture(mat, aiTextureType_HEIGHT, AITexType.HEIGHT)?.let { textures[AITexType.HEIGHT] = it }
         extractTexture(mat, aiTextureType_OPACITY, AITexType.OPACITY)?.let { textures[AITexType.OPACITY] = it }
         extractTexture(mat, aiTextureType_CLEARCOAT, AITexType.CLEARCOAT)?.let { textures[AITexType.CLEARCOAT] = it }
         extractTexture(mat, aiTextureType_SHEEN, AITexType.SHEEN_COLOR)?.let { textures[AITexType.SHEEN_COLOR] = it }
@@ -221,6 +261,7 @@ object AIModelLoader {
         }
         val f1 = floatArrayOf(0f); val max = intArrayOf(1)
         var metallic = 0f; var roughness = 1f; var ior = 1.5f
+        var opacity = 1f; var shininess = 0f; var specularFactor = 1f; var glossinessFactor = 1f; var anisotropyFactor = 0f
         var normalScale = 1f; var occlusionStrength = 1f; var emissiveStrength = 1f; var alphaCutoff = 0.5f
         if (aiGetMaterialFloatArray(mat, AI_MATKEY_METALLIC_FACTOR, aiTextureType_NONE, 0, f1, max) == aiReturn_SUCCESS) metallic = f1[0]
         max[0] = 1
@@ -228,7 +269,22 @@ object AIModelLoader {
         max[0] = 1
         if (aiGetMaterialFloatArray(mat, AI_MATKEY_REFRACTI, aiTextureType_NONE, 0, f1, max) == aiReturn_SUCCESS) ior = f1[0]
         max[0] = 1
+        if (aiGetMaterialFloatArray(mat, AI_MATKEY_OPACITY, aiTextureType_NONE, 0, f1, max) == aiReturn_SUCCESS) opacity = f1[0]
+        max[0] = 1
+        if (aiGetMaterialFloatArray(mat, AI_MATKEY_SHININESS, aiTextureType_NONE, 0, f1, max) == aiReturn_SUCCESS) shininess = f1[0]
+        max[0] = 1
+        if (aiGetMaterialFloatArray(mat, AI_MATKEY_SPECULAR_FACTOR, aiTextureType_NONE, 0, f1, max) == aiReturn_SUCCESS) specularFactor = f1[0]
+        max[0] = 1
+        if (aiGetMaterialFloatArray(mat, AI_MATKEY_GLOSSINESS_FACTOR, aiTextureType_NONE, 0, f1, max) == aiReturn_SUCCESS) glossinessFactor = f1[0]
+        max[0] = 1
+        if (aiGetMaterialFloatArray(mat, AI_MATKEY_ANISOTROPY_FACTOR, aiTextureType_NONE, 0, f1, max) == aiReturn_SUCCESS) anisotropyFactor = f1[0]
+        max[0] = 1
+        if (aiGetMaterialFloatArray(mat, AI_MATKEY_BUMPSCALING, aiTextureType_NONE, 0, f1, max) == aiReturn_SUCCESS) normalScale = f1[0]
+        max[0] = 1
+        if (aiGetMaterialFloatArray(mat, AI_MATKEY_EMISSIVE_INTENSITY, aiTextureType_NONE, 0, f1, max) == aiReturn_SUCCESS) emissiveStrength = f1[0]
+        max[0] = 1
         if (aiGetMaterialFloatArray(mat, AI_MATKEY_GLTF_ALPHACUTOFF, aiTextureType_NONE, 0, f1, max) == aiReturn_SUCCESS) alphaCutoff = f1[0]
+        if (opacity < 0.999f) baseColor = AIVec4(baseColor.x, baseColor.y, baseColor.z, baseColor.w * opacity.coerceIn(0f, 1f))
         val emissive = floatArrayOf(0f, 0f, 0f)
         val emColor = AIColor4D.create()
         if (aiGetMaterialColor(mat, AI_MATKEY_COLOR_EMISSIVE, aiTextureType_NONE, 0, emColor) == aiReturn_SUCCESS) {
@@ -249,7 +305,7 @@ object AIModelLoader {
         val khr = parseKhrExtensions(mat)
         val name = AIString.create()
         aiGetMaterialString(mat, AI_MATKEY_NAME, aiTextureType_NONE, 0, name)
-        return AIPbrMat(
+        return OurMaterial(
             name = name.dataString(),
             baseColorFactor = baseColor,
             metallicFactor = metallic,
@@ -262,6 +318,11 @@ object AIModelLoader {
             alphaCutoff = alphaCutoff,
             doubleSided = doubleSided,
             ior = ior,
+            opacity = opacity,
+            shininess = shininess,
+            specularFactor = specularFactor,
+            glossinessFactor = glossinessFactor,
+            anisotropyFactor = anisotropyFactor,
             textures = textures,
             khrExtensions = khr
         )
@@ -270,27 +331,33 @@ object AIModelLoader {
         val f1 = floatArrayOf(0f); val max = intArrayOf(1)
         var clearcoatFactor = 0f; var clearcoatRoughness = 0f
         max[0] = 1
-        if (aiGetMaterialFloatArray(mat, "\$mat.gltf.clearcoatFactor", 0, 0, f1, max) == aiReturn_SUCCESS) clearcoatFactor = f1[0]
+        if (aiGetMaterialFloatArray(mat, AI_MATKEY_CLEARCOAT_FACTOR, 0, 0, f1, max) == aiReturn_SUCCESS) clearcoatFactor = f1[0]
         max[0] = 1
-        if (aiGetMaterialFloatArray(mat, "\$mat.gltf.clearcoatRoughnessFactor", 0, 0, f1, max) == aiReturn_SUCCESS) clearcoatRoughness = f1[0]
+        if (aiGetMaterialFloatArray(mat, AI_MATKEY_CLEARCOAT_ROUGHNESS_FACTOR, 0, 0, f1, max) == aiReturn_SUCCESS) clearcoatRoughness = f1[0]
         val clearcoat = if (clearcoatFactor > 0f) AIKhrClearcoat(clearcoatFactor, clearcoatRoughness) else null
         var sheenRoughness = 0f
         max[0] = 1
-        if (aiGetMaterialFloatArray(mat, "\$mat.gltf.sheenRoughnessFactor", 0, 0, f1, max) == aiReturn_SUCCESS) sheenRoughness = f1[0]
+        if (aiGetMaterialFloatArray(mat, AI_MATKEY_SHEEN_ROUGHNESS_FACTOR, 0, 0, f1, max) == aiReturn_SUCCESS) sheenRoughness = f1[0]
         val sheenCol = AIColor4D.create()
         var sheenColor = AIVec3()
-        if (aiGetMaterialColor(mat, "\$mat.gltf.sheenColorFactor", 0, 0, sheenCol) == aiReturn_SUCCESS) {
+        if (aiGetMaterialColor(mat, AI_MATKEY_SHEEN_COLOR_FACTOR, 0, 0, sheenCol) == aiReturn_SUCCESS) {
             sheenColor = AIVec3(sheenCol.r(), sheenCol.g(), sheenCol.b())
         }
         val sheen = if (sheenRoughness > 0f || sheenColor.length() > 0f) AIKhrSheen(sheenColor, sheenRoughness) else null
         var transmissionFactor = 0f
         max[0] = 1
-        if (aiGetMaterialFloatArray(mat, "\$mat.gltf.transmissionFactor", 0, 0, f1, max) == aiReturn_SUCCESS) transmissionFactor = f1[0]
+        if (aiGetMaterialFloatArray(mat, AI_MATKEY_TRANSMISSION_FACTOR, 0, 0, f1, max) == aiReturn_SUCCESS) transmissionFactor = f1[0]
         val transmission = if (transmissionFactor > 0f) AIKhrTransmission(transmissionFactor) else null
         var thicknessFactor = 0f
         max[0] = 1
-        if (aiGetMaterialFloatArray(mat, "\$mat.gltf.thicknessFactor", 0, 0, f1, max) == aiReturn_SUCCESS) thicknessFactor = f1[0]
-        val volume = if (thicknessFactor > 0f) AIKhrVolume(thicknessFactor) else null
+        if (aiGetMaterialFloatArray(mat, AI_MATKEY_VOLUME_THICKNESS_FACTOR, 0, 0, f1, max) == aiReturn_SUCCESS) thicknessFactor = f1[0]
+        var attenuationDistance = Float.MAX_VALUE
+        max[0] = 1
+        if (aiGetMaterialFloatArray(mat, AI_MATKEY_VOLUME_ATTENUATION_DISTANCE, 0, 0, f1, max) == aiReturn_SUCCESS) attenuationDistance = f1[0]
+        val attenuationCol = AIColor4D.create()
+        var attenuationColor = AIVec3(1f, 1f, 1f)
+        if (aiGetMaterialColor(mat, AI_MATKEY_VOLUME_ATTENUATION_COLOR, 0, 0, attenuationCol) == aiReturn_SUCCESS) attenuationColor = AIVec3(attenuationCol.r(), attenuationCol.g(), attenuationCol.b())
+        val volume = if (thicknessFactor > 0f) AIKhrVolume(thicknessFactor, attenuationDistance, attenuationColor) else null
         var unlit = false
         val i1 = intArrayOf(0); val imax = intArrayOf(1)
         if (aiGetMaterialIntegerArray(mat, "\$mat.gltf.unlit", 0, 0, i1, imax) == aiReturn_SUCCESS) unlit = i1[0] != 0
@@ -305,11 +372,35 @@ object AIModelLoader {
     }
     private fun extractTexture(mat: AIMaterial, type: Int, texType: AITexType): AITexInfo? {
         val path = AIString.create()
-        if (aiGetMaterialTexture(mat, type, 0, path, null as IntArray?, null, null, null, null, null) == aiReturn_SUCCESS) {
+        val uvIndex = intArrayOf(0); val blend = floatArrayOf(1f)
+        if (aiGetMaterialTexture(mat, type, 0, path, null as IntArray?, uvIndex, blend, null, null, null) == aiReturn_SUCCESS) {
             val p = path.dataString()
-            if (p.isNotEmpty()) return AITexInfo(path = p, type = texType)
+            if (p.isNotEmpty()) return AITexInfo(path = p, type = texType, uvIndex = uvIndex[0], uvTransform = extractUvTransform(mat, type))
         }
         return null
+    }
+    private fun extractUvTransform(mat: AIMaterial, type: Int): cn.chen.assimp.material.AIUVTransform {
+        val uvTransform = AIUVTransform.create()
+        var out = cn.chen.assimp.material.AIUVTransform()
+        if (aiGetMaterialUVTransform(mat, _AI_MATKEY_UVTRANSFORM_BASE, type, 0, uvTransform) == aiReturn_SUCCESS) {
+            val tr = uvTransform.mTranslation(); val sc = uvTransform.mScaling()
+            out = cn.chen.assimp.material.AIUVTransform(offset = tr.x() to tr.y(), scale = sc.x() to sc.y(), rotation = uvTransform.mRotation())
+        }
+        return out
+    }
+    private fun generateNormals(positions: AIVector3D.Buffer, numVerts: Int, indices: List<Int>): List<AIVec3> {
+        val sums = MutableList(numVerts) { AIVec3() }
+        var i = 0
+        while (i + 2 < indices.size) {
+            val ia = indices[i]; val ib = indices[i + 1]; val ic = indices[i + 2]
+            val a = positions.get(ia); val b = positions.get(ib); val c = positions.get(ic)
+            val ab = AIVec3(b.x() - a.x(), b.y() - a.y(), b.z() - a.z())
+            val ac = AIVec3(c.x() - a.x(), c.y() - a.y(), c.z() - a.z())
+            val n = ab.cross(ac)
+            sums[ia] = sums[ia] + n; sums[ib] = sums[ib] + n; sums[ic] = sums[ic] + n
+            i += 3
+        }
+        return sums.map { if (it.length() > 0f) it.normalize() else AIVec3(0f, 1f, 0f) }
     }
     private fun parseMorphTargets(mesh: AIMesh, numVerts: Int): List<AIMorphTarget> {
         val numAnimMeshes = mesh.mNumAnimMeshes()
@@ -337,20 +428,55 @@ object AIModelLoader {
     }
     private fun parseAnimation(anim: AIAnimation): AIAnimClip {
         val numChannels = anim.mNumChannels()
-        val channelPtrs = anim.mChannels()!!
+        val channelPtrs = anim.mChannels()
         val channels = (0 until numChannels).map { i ->
-            val channel = AINodeAnim.create(channelPtrs.get(i))
+            val channel = AINodeAnim.create(channelPtrs!!.get(i))
             val np = channel.mNumPositionKeys(); val nr = channel.mNumRotationKeys(); val ns = channel.mNumScalingKeys()
             val posTimes = DoubleArray(np); val posVals = FloatArray(np * 3)
             val rotTimes = DoubleArray(nr); val rotVals = FloatArray(nr * 4)
             val sclTimes = DoubleArray(ns); val sclVals = FloatArray(ns * 3)
-            val pk = channel.mPositionKeys()!!; val rk = channel.mRotationKeys()!!; val sk = channel.mScalingKeys()!!
-            for (k in 0 until np) { val key = pk.get(k); posTimes[k] = key.mTime(); val v = key.mValue(); val o = k*3; posVals[o] = v.x(); posVals[o+1] = v.y(); posVals[o+2] = v.z() }
-            for (k in 0 until nr) { val key = rk.get(k); rotTimes[k] = key.mTime(); val v = key.mValue(); val o = k*4; rotVals[o] = v.x(); rotVals[o+1] = v.y(); rotVals[o+2] = v.z(); rotVals[o+3] = v.w() }
-            for (k in 0 until ns) { val key = sk.get(k); sclTimes[k] = key.mTime(); val v = key.mValue(); val o = k*3; sclVals[o] = v.x(); sclVals[o+1] = v.y(); sclVals[o+2] = v.z() }
-            OurChannel(channel.mNodeName().dataString(), posTimes, posVals, rotTimes, rotVals, sclTimes, sclVals)
+            val pk = channel.mPositionKeys(); val rk = channel.mRotationKeys(); val sk = channel.mScalingKeys()
+            if (pk != null) for (k in 0 until np) { val key = pk.get(k); posTimes[k] = key.mTime(); val v = key.mValue(); val o = k*3; posVals[o] = v.x(); posVals[o+1] = v.y(); posVals[o+2] = v.z() }
+            if (rk != null) for (k in 0 until nr) { val key = rk.get(k); rotTimes[k] = key.mTime(); val v = key.mValue(); val o = k*4; rotVals[o] = v.x(); rotVals[o+1] = v.y(); rotVals[o+2] = v.z(); rotVals[o+3] = v.w() }
+            if (sk != null) for (k in 0 until ns) { val key = sk.get(k); sclTimes[k] = key.mTime(); val v = key.mValue(); val o = k*3; sclVals[o] = v.x(); sclVals[o+1] = v.y(); sclVals[o+2] = v.z() }
+            OurChannel(channel.mNodeName().dataString(), posTimes, posVals, rotTimes, rotVals, sclTimes, sclVals, parseAnimBehaviour(channel.mPreState()), parseAnimBehaviour(channel.mPostState()))
         }
-        return AIAnimClip(anim.mName().dataString(), anim.mDuration(), anim.mTicksPerSecond(), channels)
+        return AIAnimClip(anim.mName().dataString(), anim.mDuration(), anim.mTicksPerSecond(), channels, parseMeshAnimChannels(anim), parseMorphAnimChannels(anim))
+    }
+    private fun parseAnimBehaviour(value: Int) = when (value) {
+        aiAnimBehaviour_CONSTANT -> AIAnimBehaviour.CONSTANT
+        aiAnimBehaviour_LINEAR -> AIAnimBehaviour.LINEAR
+        aiAnimBehaviour_REPEAT -> AIAnimBehaviour.REPEAT
+        else -> AIAnimBehaviour.DEFAULT
+    }
+    private fun parseMeshAnimChannels(anim: AIAnimation): List<AIMeshAnimChannel> {
+        val count = anim.mNumMeshChannels()
+        if (count == 0) return emptyList()
+        val ptrs = anim.mMeshChannels() ?: return emptyList()
+        return (0 until count).map { i ->
+            val ch = AIMeshAnim.create(ptrs.get(i))
+            val numKeys = ch.mNumKeys()
+            val times = DoubleArray(numKeys); val values = IntArray(numKeys)
+            val keys = ch.mKeys()
+            for (k in 0 until numKeys) { val key = keys.get(k); times[k] = key.mTime(); values[k] = key.mValue() }
+            AIMeshAnimChannel(ch.mName().dataString(), times, values)
+        }
+    }
+    private fun parseMorphAnimChannels(anim: AIAnimation): List<AIMorphAnimChannel> {
+        val count = anim.mNumMorphMeshChannels()
+        if (count == 0) return emptyList()
+        val ptrs = anim.mMorphMeshChannels() ?: return emptyList()
+        return (0 until count).map { i ->
+            val ch = AIMeshMorphAnim.create(ptrs.get(i))
+            val keys = ch.mKeys()
+            val out = (0 until ch.mNumKeys()).map { k ->
+                val key = keys.get(k)
+                val len = key.mNumValuesAndWeights()
+                val values = key.mValues(); val weights = key.mWeights()
+                AIMorphKey(key.mTime(), IntArray(len) { values.get(it) }, FloatArray(len) { weights.get(it).toFloat() })
+            }
+            AIMorphAnimChannel(ch.mName().dataString(), out)
+        }
     }
     private fun parseNode(node: AINode, parent: AINodeGraph?): AINodeGraph {
         val meshCount = node.mNumMeshes()
