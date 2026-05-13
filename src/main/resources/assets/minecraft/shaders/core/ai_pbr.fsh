@@ -61,9 +61,7 @@ float schlick5(float u) { float x = 1.0 - u; float x2 = x * x; return x2 * x2 * 
 vec3 toLinear(vec3 c) { return c * c; }
 vec3 toSrgb(vec3 c) { return sqrt(c); }
 vec3 decodeRGBM(vec4 c) { return c.rgb * c.a * RGBM_RANGE; }
-vec2 envUv(vec3 n) {
-    return vec2(atan(n.z, n.x) / (2.0 * PI) + 0.5, asin(clamp(n.y, -1.0, 1.0)) / PI + 0.5);
-}
+vec2 envUv(vec3 n) { return vec2(atan(n.z, n.x) / (2.0 * PI) + 0.5, asin(clamp(n.y, -1.0, 1.0)) / PI + 0.5); }
 vec3 sampleIrradiance(vec3 N) { return decodeRGBM(texture(IrradianceMap, envUv(N))); }
 vec3 samplePrefilter(vec3 R, float roughness) {
     vec2 uv = envUv(R);
@@ -77,10 +75,7 @@ vec3 samplePrefilter(vec3 R, float roughness) {
     vec2 uv1 = vec2(uv.x, (l1 + uv.y) * invN);
     return mix(decodeRGBM(texture(PrefilterMap, uv0)), decodeRGBM(texture(PrefilterMap, uv1)), f);
 }
-float D_GGX(float ndh, float a2) {
-    float d = ndh * ndh * (a2 - 1.0) + 1.0;
-    return a2 / (PI * d * d);
-}
+float D_GGX(float ndh, float a2) { float d = ndh * ndh * (a2 - 1.0) + 1.0; return a2 / (PI * d * d); }
 float V_SmithGGXCorrelated(float ndv, float ndl, float a2) {
     float ggxv = ndl * sqrt(ndv * ndv * (1.0 - a2) + a2);
     float ggxl = ndv * sqrt(ndl * ndl * (1.0 - a2) + a2);
@@ -88,9 +83,7 @@ float V_SmithGGXCorrelated(float ndv, float ndl, float a2) {
 }
 float V_Kelemen(float vdh) { return 0.25 / max(vdh * vdh, 1e-7); }
 vec3 F_Schlick(float cosTheta, vec3 f0) { return f0 + (1.0 - f0) * schlick5(cosTheta); }
-vec3 F_SchlickR(float cosTheta, vec3 f0, float roughness) {
-    return f0 + (max(vec3(1.0 - roughness), f0) - f0) * schlick5(cosTheta);
-}
+vec3 F_SchlickR(float cosTheta, vec3 f0, float roughness) { return f0 + (max(vec3(1.0 - roughness), f0) - f0) * schlick5(cosTheta); }
 float D_Charlie(float ndh, float sheenRoughness) {
     float invR = 1.0 / max(sheenRoughness, 0.01);
     float sin2h = max(1.0 - ndh * ndh, 0.0);
@@ -112,10 +105,11 @@ float sampleShadow(vec3 worldPos, float viewDistance) {
     float d2 = texture(ShadowMap, atlas + vec2(0.0, texel.y)).r;
     float d3 = texture(ShadowMap, atlas + texel).r;
     vec2 f = fract(atlas * texSize);
-    float s0 = step(uvz.z - bias, d0);
-    float s1 = step(uvz.z - bias, d1);
-    float s2 = step(uvz.z - bias, d2);
-    float s3 = step(uvz.z - bias, d3);
+    float z = uvz.z - bias;
+    float s0 = step(z, d0);
+    float s1 = step(z, d1);
+    float s2 = step(z, d2);
+    float s3 = step(z, d3);
     return mix(mix(s0, s1, f.x), mix(s2, s3, f.x), f.y);
 }
 vec3 acesTonemap(vec3 x) {
@@ -134,18 +128,15 @@ vec4 probeSample(vec3 worldPos) {
     if (any(lessThan(local, vec3(0.0))) || any(greaterThanEqual(local, vec3(gxF)))) return vec4(0.5, 0.5, 0.0, 0.0);
     return probeFetchCell(ivec3(floor(local)));
 }
-float marchBlockShadow(vec3 worldPos) {
-    if (ProbeFlags.x < 0.5) return 1.0;
+float marchBlockShadow(vec3 worldPos, float sunWeight) {
+    if (ProbeFlags.x < 0.5 || sunWeight < 0.05) return 1.0;
     vec3 dir = ProbeSun.xyz;
     float step = max(ProbeSun.w, 0.1);
     vec3 p = worldPos + dir * step * 0.6;
     int hits = 0;
     for (int i = 0; i < 10; ++i) {
         p += dir * step;
-        if (probeSample(p).b > 0.5) {
-            hits++;
-            if (hits >= 2) return 1.0 - ProbeFlags.y;
-        }
+        if (probeSample(p).b > 0.5) { hits++; if (hits >= 2) return 1.0 - ProbeFlags.y; }
     }
     return mix(1.0, 1.0 - ProbeFlags.y * 0.5, float(hits) / 2.0);
 }
@@ -175,27 +166,17 @@ vec3 burleyDiffuse(vec3 albedo, float ndl, float ndv, float vdh, float roughness
     return albedo * lightScatter * viewScatter / PI;
 }
 struct PbrParams {
-    vec3 albedo;
-    float metallic;
-    float roughness;
-    float a2;
-    vec3 f0;
-    vec3 N;
-    vec3 V;
-    float ndv;
-    float clearcoat;
-    float clearcoatRoughness;
-    float clearcoatA2;
-    vec3 sheenColor;
-    float sheenRoughness;
-    float transmission;
+    vec3 albedo; float metallic; float roughness; float a2; vec3 f0;
+    vec3 N; vec3 V; float ndv;
+    float clearcoat; float clearcoatRoughness; float clearcoatA2;
+    vec3 sheenColor; float sheenRoughness; float transmission;
 };
 float pointAtten(float distSq, float range) {
     float r2 = max(range * range, 1e-4);
     float k = clamp(1.0 - distSq / r2, 0.0, 1.0);
     return k * k / (1.0 + distSq);
 }
-vec3 evalPointLight(PbrParams p, vec3 Lw, vec3 Nw, float distSq, float range, vec3 lightColor, float intensity) {
+vec3 evalPointLight(PbrParams p, vec3 Lw, float distSq, float range, vec3 lightColor, float intensity) {
     float falloff = pointAtten(distSq, range);
     if (falloff < 1e-4) return vec3(0.0);
     vec3 Lview = normalize(mat3(ModelViewMat) * Lw);
@@ -237,16 +218,14 @@ vec3 evalDirectLight(PbrParams p, vec3 L, vec3 lightColor, float intensity) {
     float ndh = max(dot(p.N, H), 0.0);
     float vdh = max(dot(p.V, H), 0.0);
     float D = D_GGX(ndh, p.a2);
-    float V = V_SmithGGXCorrelated(p.ndv, ndl, p.a2);
+    float Vt = V_SmithGGXCorrelated(p.ndv, ndl, p.a2);
     vec3 F = F_Schlick(vdh, p.f0);
-    vec3 specular = D * V * F;
+    vec3 specular = D * Vt * F;
     vec3 kD = (1.0 - F) * (1.0 - p.metallic);
     vec3 diffuse = kD * burleyDiffuse(p.albedo, ndl, p.ndv, vdh, p.roughness);
     vec3 baseBrdf = (diffuse + specular) * ndl;
     vec3 sheenOut = vec3(0.0);
-    if (p.sheenRoughness > 0.0) {
-        sheenOut = p.sheenColor * D_Charlie(ndh, p.sheenRoughness) * V_Ashikhmin(p.ndv, ndl) * ndl;
-    }
+    if (p.sheenRoughness > 0.0) sheenOut = p.sheenColor * D_Charlie(ndh, p.sheenRoughness) * V_Ashikhmin(p.ndv, ndl) * ndl;
     float sheenScale = 1.0 - max(max(p.sheenColor.r, p.sheenColor.g), p.sheenColor.b) * 0.2;
     vec3 ccOut = vec3(0.0);
     if (p.clearcoat > 0.0) {
@@ -260,15 +239,9 @@ vec3 evalIBL(PbrParams p, vec3 irradiance, vec3 prefiltered, vec2 brdf) {
     vec3 F = F_SchlickR(p.ndv, p.f0, p.roughness);
     vec3 kD = (1.0 - F) * (1.0 - p.metallic);
     vec3 diffuseIBL = kD * p.albedo * irradiance;
-    vec3 FssEss = F * brdf.x + brdf.y;
-    float Ems = 1.0 - (brdf.x + brdf.y);
-    vec3 Favg = p.f0 + (1.0 - p.f0) / 21.0;
-    vec3 FmsEms = Ems * FssEss * Favg / max(1.0 - Favg * Ems, 1e-4);
-    vec3 specIBL = prefiltered * (FssEss + FmsEms);
+    vec3 specIBL = prefiltered * (F * brdf.x + brdf.y);
     vec3 sheenIBL = vec3(0.0);
-    if (p.sheenRoughness > 0.0) {
-        sheenIBL = p.sheenColor * texture(BrdfLut, vec2(p.ndv, p.sheenRoughness)).b * irradiance;
-    }
+    if (p.sheenRoughness > 0.0) sheenIBL = p.sheenColor * texture(BrdfLut, vec2(p.ndv, p.sheenRoughness)).b * irradiance;
     float sheenScale = 1.0 - max(max(p.sheenColor.r, p.sheenColor.g), p.sheenColor.b) * 0.2;
     vec3 ccIBL = vec3(0.0);
     if (p.clearcoat > 0.0) {
@@ -280,6 +253,32 @@ vec3 evalIBL(PbrParams p, vec3 irradiance, vec3 prefiltered, vec2 brdf) {
     }
     float ccAtten = 1.0 - p.clearcoat * (0.04 + 0.96 * schlick5(p.ndv));
     return (diffuseIBL + specIBL) * sheenScale * ccAtten + sheenIBL + ccIBL;
+}
+vec3 sampleEmissivePixel(vec2 uv) {
+    vec3 e = texture(EmissiveMap, uv).rgb;
+    return e * e * (e * 0.6 + 0.4);
+}
+vec3 emissiveHalo(vec2 uv, float bloomScale) {
+    vec2 emPx = (1.0 + bloomScale * 1.4) / vec2(textureSize(EmissiveMap, 0));
+    vec3 c = sampleEmissivePixel(uv);
+    float wC = 0.227027;
+    float w1 = 0.194594;
+    float w2 = 0.121622;
+    float w3 = 0.054054;
+    vec3 sum = c * wC;
+    sum += sampleEmissivePixel(uv + vec2(emPx.x, 0.0)) * w1;
+    sum += sampleEmissivePixel(uv - vec2(emPx.x, 0.0)) * w1;
+    sum += sampleEmissivePixel(uv + vec2(0.0, emPx.y)) * w1;
+    sum += sampleEmissivePixel(uv - vec2(0.0, emPx.y)) * w1;
+    sum += sampleEmissivePixel(uv + vec2(emPx.x, emPx.y)) * w2;
+    sum += sampleEmissivePixel(uv - vec2(emPx.x, emPx.y)) * w2;
+    sum += sampleEmissivePixel(uv + vec2(emPx.x, -emPx.y)) * w2;
+    sum += sampleEmissivePixel(uv + vec2(-emPx.x, emPx.y)) * w2;
+    sum += sampleEmissivePixel(uv + vec2(2.0 * emPx.x, 0.0)) * w3;
+    sum += sampleEmissivePixel(uv - vec2(2.0 * emPx.x, 0.0)) * w3;
+    sum += sampleEmissivePixel(uv + vec2(0.0, 2.0 * emPx.y)) * w3;
+    sum += sampleEmissivePixel(uv - vec2(0.0, 2.0 * emPx.y)) * w3;
+    return mix(c, sum, 0.75);
 }
 void main() {
     vec4 sampled = texture(Sampler0, texCoord0);
@@ -323,10 +322,12 @@ void main() {
     float ao = voxelAO(fragWorldPos, Nw);
     p.a2 = specularAA(p.N, p.a2);
     float wetness = ProbeFlags.z * max(Nw.y, 0.0) * clamp(ProbeSkyTint.a, 0.0, 1.0);
-    roughness = mix(roughness, max(roughness * 0.4, MIN_ROUGHNESS), wetness);
-    p.roughness = roughness;
-    p.a2 = mix(p.a2, max(roughness * roughness, MIN_ROUGHNESS * MIN_ROUGHNESS), wetness);
-    p.f0 = mix(p.f0, vec3(max(p.f0.r, 0.08)), wetness * 0.6);
+    if (wetness > 0.001) {
+        roughness = mix(roughness, max(roughness * 0.4, MIN_ROUGHNESS), wetness);
+        p.roughness = roughness;
+        p.a2 = mix(p.a2, max(roughness * roughness, MIN_ROUGHNESS * MIN_ROUGHNESS), wetness);
+        p.f0 = mix(p.f0, vec3(max(p.f0.r, 0.08)), wetness * 0.6);
+    }
     vec4 probe = probeSample(fragWorldPos);
     vec2 dynamicLM = vec2(clamp(probe.r * 1.07, 0.0, 1.0), clamp(probe.g * 1.07, 0.0, 1.0));
     vec3 dynMcLight = sample_lightmap(Sampler2, ivec2(dynamicLM * 240.0)).rgb;
@@ -341,10 +342,12 @@ void main() {
     float sunInt = ProbeSunTint.a;
     vec3 fillColor = mix(vec3(0.8), toLinear(ProbeSkyTint.rgb), 0.45);
     float skyFac = ProbeSkyTint.a;
-    float shadow = sampleShadow(fragWorldPos, length(fragPos));
-    float blockShadow = marchBlockShadow(fragWorldPos);
+    float sunWeight = sunInt * lightLuma;
+    float shadow = sunWeight > 0.01 ? sampleShadow(fragWorldPos, length(fragPos)) : 1.0;
+    float blockShadow = marchBlockShadow(fragWorldPos, sunWeight);
     float sunMask = shadow * blockShadow;
-    vec3 Lo = evalDirectLight(p, L0, sunColor, 1.4 * lightLuma * sunInt * sunMask);
+    vec3 Lo = vec3(0.0);
+    if (sunWeight > 0.001) Lo += evalDirectLight(p, L0, sunColor, 1.4 * sunWeight * sunMask);
     Lo += evalDirectLight(p, L1, fillColor, 0.45 * lightLuma * skyFac);
     vec3 irradiance = sampleIrradiance(p.N);
     vec3 R = reflect(-p.V, p.N);
@@ -361,8 +364,9 @@ void main() {
             vec3 Lw = LightPos[i].xyz - fragWorldPos;
             float d2 = dot(Lw, Lw);
             float range = LightPos[i].w;
+            if (d2 > range * range) continue;
             vec3 Lw_n = Lw * inversesqrt(max(d2, 1e-6));
-            color += evalPointLight(p, Lw_n, Nw, d2, range, LightCol[i].rgb, LightCol[i].a);
+            color += evalPointLight(p, Lw_n, d2, range, LightCol[i].rgb, LightCol[i].a);
         }
     }
     if (LightInfo.y > 0.5 && p.metallic > 0.01) {
@@ -374,24 +378,21 @@ void main() {
         vec3 rimColor = mix(vec3(0.55, 0.7, 1.0), vec3(1.0), p.metallic);
         color += rim * rimColor * rimIntensity * mix(0.4, 1.4, p.metallic) * (0.4 + lightLuma * 0.6);
     }
-    float bloomScale = max(LightInfo.z, 1.0);
-    vec2 emPx = (1.5 + bloomScale * 0.6) / vec2(textureSize(EmissiveMap, 0));
-    vec3 emCenter = toLinear(texture(EmissiveMap, texCoord0).rgb);
-    vec3 emHalo = emCenter * 0.36;
-    emHalo += toLinear(texture(EmissiveMap, texCoord0 + vec2(emPx.x, 0.0)).rgb) * 0.12;
-    emHalo += toLinear(texture(EmissiveMap, texCoord0 - vec2(emPx.x, 0.0)).rgb) * 0.12;
-    emHalo += toLinear(texture(EmissiveMap, texCoord0 + vec2(0.0, emPx.y)).rgb) * 0.12;
-    emHalo += toLinear(texture(EmissiveMap, texCoord0 - vec2(0.0, emPx.y)).rgb) * 0.12;
-    emHalo += toLinear(texture(EmissiveMap, texCoord0 + emPx).rgb) * 0.04;
-    emHalo += toLinear(texture(EmissiveMap, texCoord0 - emPx).rgb) * 0.04;
-    emHalo += toLinear(texture(EmissiveMap, texCoord0 + vec2(emPx.x, -emPx.y)).rgb) * 0.04;
-    emHalo += toLinear(texture(EmissiveMap, texCoord0 + vec2(-emPx.x, emPx.y)).rgb) * 0.04;
-    float emStr = max(MatEmissiveStrength.a, 1.0);
-    vec3 emissive = emHalo * MatEmissiveStrength.rgb * emStr;
-    float emLuma = dot(emissive, vec3(0.2126, 0.7152, 0.0722));
-    if (emLuma > 0.001) {
-        color += emissive * (3.5 + bloomScale * 1.5);
-        alpha = min(alpha + emLuma * 0.5, 1.0);
+    float emStr = MatEmissiveStrength.a;
+    vec3 emFactor = MatEmissiveStrength.rgb;
+    float emKey = max(max(emFactor.r, emFactor.g), emFactor.b) * emStr;
+    if (emKey > 1e-4) {
+        float bloomScale = max(LightInfo.z, 1.0);
+        vec3 emCol = emissiveHalo(texCoord0, bloomScale);
+        float emMask = dot(emCol, vec3(0.299, 0.587, 0.114));
+        emMask = smoothstep(0.008, 0.18, emMask);
+        vec3 emissive = emCol * emFactor * emStr * emMask;
+        float emLuma = dot(emissive, vec3(0.2126, 0.7152, 0.0722));
+        if (emLuma > 0.0005) {
+            float bloomBoost = 2.0 + bloomScale * 1.5;
+            color += emissive * bloomBoost;
+            alpha = min(alpha + emLuma * 0.4 * emMask, 1.0);
+        }
     }
     color = mix(toLinear(overlayColor.rgb), color, overlayColor.a);
     color = acesTonemap(color);

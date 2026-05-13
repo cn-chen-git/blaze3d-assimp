@@ -75,7 +75,7 @@ class AITextureRegistry {
     operator fun get(matIdx: Int): Identifier = texIds[TexKey(matIdx, AITexType.ALBEDO)] ?: whiteTex
     fun getNormal(matIdx: Int): Identifier = texIds[TexKey(matIdx, AITexType.NORMAL)] ?: flatNormalTex
     fun getMR(matIdx: Int): Identifier = texIds[TexKey(matIdx, AITexType.METALLIC_ROUGHNESS)] ?: defaultMrTex
-    fun getEmissive(matIdx: Int): Identifier = texIds[TexKey(matIdx, AITexType.EMISSIVE)] ?: whiteTex
+    fun getEmissive(matIdx: Int): Identifier = texIds[TexKey(matIdx, AITexType.EMISSIVE)] ?: blackTex
     fun hasNormal(matIdx: Int) = texIds.containsKey(TexKey(matIdx, AITexType.NORMAL))
     fun hasMR(matIdx: Int) = texIds.containsKey(TexKey(matIdx, AITexType.METALLIC_ROUGHNESS))
     fun hasEmissive(matIdx: Int) = texIds.containsKey(TexKey(matIdx, AITexType.EMISSIVE))
