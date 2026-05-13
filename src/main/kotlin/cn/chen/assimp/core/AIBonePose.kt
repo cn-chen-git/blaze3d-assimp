@@ -3,6 +3,8 @@ import cn.chen.assimp.math.AIMat4
 class AIBonePose(val bones: Map<String, AIBoneInfo>, val globalInverseTransform: AIMat4) {
     val boneCount get() = bones.size
     val boneMatrices = Array(bones.size) { AIMat4.identity() }
+    var revision: Int = 0; private set
+    fun markDirty() { revision++ }
     private var stack: Array<AIMat4?> = arrayOfNulls(64)
     private val identity = AIMat4()
     private val tmpNode = AIMat4()
@@ -12,6 +14,7 @@ class AIBonePose(val bones: Map<String, AIBoneInfo>, val globalInverseTransform:
         val animTime = (timeInSeconds * ticks) % animation.duration
         identity.setIdentity()
         traverseInto(animTime, animation, rootNode, identity, 0)
+        revision++
     }
     private fun traverseInto(animTime: Double, anim: AIAnimClip, node: AINodeGraph, parent: AIMat4, depth: Int) {
         val channel = anim.getChannel(node.name)

@@ -32,6 +32,7 @@ class AIAnimBlender(private val skeleton: AIBonePose, private val rootNode: AINo
         }
         identityMat.setIdentity()
         traverse(rootNode, identityMat, 0)
+        skeleton.markDirty()
     }
     private fun traverse(node: AINodeGraph, parent: AIMat4, depth: Int) {
         val local = tmpLocal

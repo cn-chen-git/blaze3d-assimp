@@ -8,28 +8,35 @@ import net.minecraft.client.renderer.texture.DynamicTexture
 import net.minecraft.resources.Identifier
 import kotlin.math.*
 class AIEnvironmentMap {
-    private val irradianceId = Identifier.fromNamespaceAndPath("lwjgl-assimp", "dynamic/ai_irradiance")
-    private val prefilterId = Identifier.fromNamespaceAndPath("lwjgl-assimp", "dynamic/ai_prefilter")
-    private val brdfId = Identifier.fromNamespaceAndPath("lwjgl-assimp", "dynamic/ai_brdf_lut")
-    fun init() {
-        release()
-        val tm = Minecraft.getInstance().textureManager
-        tm.register(irradianceId, DynamicTexture({ "ai_irradiance" }, genIrradiance(128, 64)))
-        tm.register(prefilterId, DynamicTexture({ "ai_prefilter" }, genPrefilterAtlas(128, 64, MIP_LEVELS)))
-        tm.register(brdfId, DynamicTexture({ "ai_brdf_lut" }, genBrdfLut(128)))
-    }
-    fun bind(rp: RenderPass) {
-        val tm = Minecraft.getInstance().textureManager
-        val sampler = RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR)
-        tm.getTexture(irradianceId)?.let { rp.bindTexture("IrradianceMap", it.textureView, sampler) }
-        tm.getTexture(prefilterId)?.let { rp.bindTexture("PrefilterMap", it.textureView, sampler) }
-        tm.getTexture(brdfId)?.let { rp.bindTexture("BrdfLut", it.textureView, sampler) }
-    }
-    fun release() {
-        val tm = Minecraft.getInstance().textureManager
-        tm.release(irradianceId); tm.release(prefilterId); tm.release(brdfId)
-    }
+    fun init() = ensureInitialized()
+    fun bind(rp: RenderPass) = bindGlobal(rp)
+    fun release() {}
     companion object {
+        private val IRRADIANCE_ID = Identifier.fromNamespaceAndPath("lwjgl-assimp", "dynamic/ai_irradiance")
+        private val PREFILTER_ID = Identifier.fromNamespaceAndPath("lwjgl-assimp", "dynamic/ai_prefilter")
+        private val BRDF_ID = Identifier.fromNamespaceAndPath("lwjgl-assimp", "dynamic/ai_brdf_lut")
+        private var initialized = false
+        fun ensureInitialized() {
+            if (initialized) return
+            val tm = Minecraft.getInstance().textureManager
+            tm.register(IRRADIANCE_ID, DynamicTexture({ "ai_irradiance" }, genIrradiance(128, 64)))
+            tm.register(PREFILTER_ID, DynamicTexture({ "ai_prefilter" }, genPrefilterAtlas(128, 64, MIP_LEVELS)))
+            tm.register(BRDF_ID, DynamicTexture({ "ai_brdf_lut" }, genBrdfLut(128)))
+            initialized = true
+        }
+        fun bindGlobal(rp: RenderPass) {
+            val tm = Minecraft.getInstance().textureManager
+            val sampler = RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR)
+            tm.getTexture(IRRADIANCE_ID)?.let { rp.bindTexture("IrradianceMap", it.textureView, sampler) }
+            tm.getTexture(PREFILTER_ID)?.let { rp.bindTexture("PrefilterMap", it.textureView, sampler) }
+            tm.getTexture(BRDF_ID)?.let { rp.bindTexture("BrdfLut", it.textureView, sampler) }
+        }
+        fun disposeGlobal() {
+            if (!initialized) return
+            val tm = Minecraft.getInstance().textureManager
+            tm.release(IRRADIANCE_ID); tm.release(PREFILTER_ID); tm.release(BRDF_ID)
+            initialized = false
+        }
         private const val PI = Math.PI.toFloat()
         private const val RGBM_RANGE = 8f
         const val MIP_LEVELS = 5

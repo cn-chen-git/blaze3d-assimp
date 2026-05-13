@@ -48,6 +48,7 @@ class AIAnimStateMachine(private val skeleton: AIBonePose, private val rootNode:
                 val t2 = (nextTime * ticks2) % nxt.clip.duration
                 identityMat.setIdentity()
                 traverseBlend(rootNode, cur.clip, nxt.clip, t1, t2, identityMat, 0)
+                skeleton.markDirty()
                 return
             }
         }

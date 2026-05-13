@@ -13,6 +13,7 @@ class AIBoneBuffer {
     private var boneCount = 0
     private var bonePose: AIBonePose? = null
     private var dirty = false
+    private var lastRevision = Int.MIN_VALUE
     fun init(scene: AISceneData) {
         release()
         bonePose = scene.skeleton
@@ -23,10 +24,14 @@ class AIBoneBuffer {
         for (i in 0 until count) writeIdentity(buf, i * 64)
         buf.position(0)
         gpuBuf = RenderSystem.getDevice().createBuffer({ "ai_bones" }, GpuBuffer.USAGE_UNIFORM, buf)
+        lastRevision = Int.MIN_VALUE
+        dirty = true
     }
     fun update() {
         val buf = cpuBuf ?: return
         val pose = bonePose ?: return
+        if (pose.revision == lastRevision) return
+        lastRevision = pose.revision
         val count = boneCount.coerceAtMost(AIPipelines.MAX_BONES)
         buf.clear()
         val matrices = pose.boneMatrices
@@ -54,7 +59,7 @@ class AIBoneBuffer {
     fun release() {
         gpuBuf?.close(); gpuBuf = null
         cpuBuf?.let { MemoryUtil.memFree(it) }; cpuBuf = null
-        boneCount = 0; bonePose = null; dirty = false
+        boneCount = 0; bonePose = null; dirty = false; lastRevision = Int.MIN_VALUE
     }
     companion object {
         private fun writeIdentity(buf: ByteBuffer, offset: Int) {
