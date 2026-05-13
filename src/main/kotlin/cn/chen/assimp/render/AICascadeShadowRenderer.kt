@@ -52,7 +52,7 @@ object AICascadeShadowRenderer {
                 materialBuffer?.let { rp.setUniform("MaterialFactors", it.slice(batch.matIdx)) }
                 lastMat = batch.matIdx
             }
-            rp.drawIndexed(batch.baseVertex, 0, batch.quadCount * 6, 1)
+            rp.drawIndexed(batch.baseVertex, 0, batch.quadCount * 6, 1, 0)
         }
     }
 }

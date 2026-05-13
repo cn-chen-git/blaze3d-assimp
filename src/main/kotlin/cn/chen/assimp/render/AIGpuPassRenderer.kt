@@ -97,7 +97,7 @@ object AIGpuPassRenderer {
                         lastEmissive = batch.emissiveMapId
                     }
                 }
-                rp.drawIndexed(batch.baseVertex, 0, batch.quadCount * 6, 1)
+                rp.drawIndexed(batch.baseVertex, 0, batch.quadCount * 6, 1, 0)
             }
             rp.close()
         }
