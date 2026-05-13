@@ -25,10 +25,14 @@ class AIWorldRenderer {
     private val environmentMap = AIEnvironmentMap()
     private val lightsBuffer = AILightsBuffer()
     private val lightCollector = AILightCollector()
-    var playerReflection = true
+    private val worldProbe = AIWorldProbe()
+    var playerReflection = false
     var dynamicLights = true
-    var rimIntensity = 0.6f
+    var rimIntensity = 0.4f
     var bloomIntensity = 2.0f
+    var blockShadows = true
+    var playerShadows = true
+    var shadowStrength = 0.6f
     private var compiled: AIBatchCompiler.Result? = null
     private var lastTime = System.nanoTime()
     private val tmpShadowCenter = Vector3f()
@@ -59,6 +63,8 @@ class AIWorldRenderer {
             environmentMap.init()
             lightsBuffer.init()
             lightCollector.invalidate()
+            worldProbe.init()
+            worldProbe.setSunDir(SHADOW_LIGHT.x, SHADOW_LIGHT.y, SHADOW_LIGHT.z)
         }
     }
     fun unload() {
@@ -70,6 +76,7 @@ class AIWorldRenderer {
         environmentMap.release()
         lightsBuffer.release()
         lightCollector.invalidate()
+        worldProbe.release()
         compiled?.close()
         compiled = null
         texReg.release()
@@ -100,14 +107,18 @@ class AIWorldRenderer {
         val needShadow = checkShadowDirty(tmpShadowCenter, shadowRadius, hasAnim)
         if (needShadow) shadowBuffer.update(tmpShadowCenter, shadowRadius, sqrt(instance.distanceSq(cam.x, cam.y, cam.z)).toFloat(), SHADOW_LIGHT, shadowMap.size)
         updateLights(tmpShadowCenter, tmpCamVec, mc, bl, sl)
+        val player = mc.player
+        val playerForProbe = if (player != null && playerShadows) tmpPlayerPos.also { it.set(player.x.toFloat(), (player.y - 0.05f).toFloat(), player.z.toFloat()) } else null
+        worldProbe.rebuild(tmpShadowCenter, playerForProbe, playerForProbe != null, blockShadows, shadowStrength)
         val encoder = RenderSystem.getDevice().createCommandEncoder()
         boneBuffer.flush(encoder)
         objectBuffer.flush(encoder)
         shadowBuffer.flush(encoder)
         lightsBuffer.flush(encoder)
+        worldProbe.flush(encoder)
         encoder.submit()
         if (needShadow) AICascadeShadowRenderer.render(c.batches, c.passRanges, c.mergedVbo, boneBuffer.slice(), objectBuffer.slice(), shadowBuffer.slice(), shadowMap, materialBuffer)
-        AIGpuPassRenderer.render(c.batches, c.passRanges, c.mergedVbo, modelMat, objectMat, tmpCamVec, instance.scale, boneBuffer.slice(), objectBuffer.slice(), shadowBuffer.slice(), shadowMap.view(), environmentMap, materialBuffer, lightsBuffer.slice())
+        AIGpuPassRenderer.render(c.batches, c.passRanges, c.mergedVbo, modelMat, objectMat, tmpCamVec, instance.scale, boneBuffer.slice(), objectBuffer.slice(), shadowBuffer.slice(), shadowMap.view(), environmentMap, materialBuffer, lightsBuffer.slice(), worldProbe)
     }
     private val tmpPlayerPos = Vector3f()
     private val tmpPlayerColor = Vector3f()
@@ -142,7 +153,7 @@ class AIWorldRenderer {
             lines.add("bound center=(${c.boundCenter.x},${c.boundCenter.y},${c.boundCenter.z}) radius=${c.boundRadius}")
         }
         lines.add("pos=${instance.pos} scale=${instance.scale} rot=${instance.rot}")
-        lines.add("fx: lights=$dynamicLights player=$playerReflection rim=$rimIntensity bloom=$bloomIntensity")
+        lines.add("fx: lights=$dynamicLights player=$playerReflection rim=$rimIntensity bloom=$bloomIntensity blockShadow=$blockShadows playerShadow=$playerShadows shadowStrength=$shadowStrength")
         s?.materials?.forEachIndexed { i, m ->
             lines.add("  mat[$i] ${m.name} alpha=${m.alphaMode} emissive=${m.emissiveFactor.toList()} ds=${m.doubleSided} tex=${m.textures.keys}")
         }

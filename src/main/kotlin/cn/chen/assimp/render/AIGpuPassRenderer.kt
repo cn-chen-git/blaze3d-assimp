@@ -29,7 +29,8 @@ object AIGpuPassRenderer {
         shadowView: GpuTextureView?,
         environmentMap: AIEnvironmentMap?,
         materialBuffer: AIMaterialBuffer?,
-        lightsSlice: GpuBufferSlice?
+        lightsSlice: GpuBufferSlice?,
+        worldProbe: AIWorldProbe?
     ) {
         val mc = Minecraft.getInstance()
         val mainTarget = mc.gameRenderer.mainRenderTarget()
@@ -59,6 +60,7 @@ object AIGpuPassRenderer {
             if (pass.isPbr && objectSlice != null) rp.setUniform("ObjectMatrices", objectSlice)
             if (pass.isPbr && shadowSlice != null) rp.setUniform("ShadowData", shadowSlice)
             if (pass.isPbr && lightsSlice != null) rp.setUniform("DynamicLights", lightsSlice)
+            if (pass.isPbr) worldProbe?.let { wp -> wp.uboSlice()?.let { rp.setUniform("WorldProbe", it) }; wp.bind(rp) }
             rp.setVertexBuffer(0, vboSlice)
             rp.setIndexBuffer(idxBuf, idxType)
             if (pass.isPbr) {

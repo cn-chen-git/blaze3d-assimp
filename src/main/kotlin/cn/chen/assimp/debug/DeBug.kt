@@ -62,6 +62,15 @@ object DeBug {
                     .then(ClientCommands.literal("bloom").then(ClientCommands.argument("v", FloatArgumentType.floatArg(0f, 8f)).executes { c ->
                         renderer.bloomIntensity = FloatArgumentType.getFloat(c, "v"); msg(c.source, "§abloom 强度: ${renderer.bloomIntensity}"); 1
                     }))
+                    .then(ClientCommands.literal("blockShadow").then(ClientCommands.argument("on", IntegerArgumentType.integer(0, 1)).executes { c ->
+                        renderer.blockShadows = IntegerArgumentType.getInteger(c, "on") != 0; msg(c.source, "§a方块阴影: ${renderer.blockShadows}"); 1
+                    }))
+                    .then(ClientCommands.literal("playerShadow").then(ClientCommands.argument("on", IntegerArgumentType.integer(0, 1)).executes { c ->
+                        renderer.playerShadows = IntegerArgumentType.getInteger(c, "on") != 0; msg(c.source, "§a玩家阴影: ${renderer.playerShadows}"); 1
+                    }))
+                    .then(ClientCommands.literal("shadowStrength").then(ClientCommands.argument("v", FloatArgumentType.floatArg(0f, 1f)).executes { c ->
+                        renderer.shadowStrength = FloatArgumentType.getFloat(c, "v"); msg(c.source, "§a世界阴影强度: ${renderer.shadowStrength}"); 1
+                    }))
                 )
             )
         }
