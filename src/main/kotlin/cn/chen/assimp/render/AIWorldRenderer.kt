@@ -5,6 +5,8 @@ import cn.chen.assimp.loader.AIModelLoader
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext
 import com.mojang.blaze3d.systems.RenderSystem
 import net.minecraft.client.Minecraft
+import net.minecraft.core.BlockPos
+import net.minecraft.world.level.LightLayer
 import org.joml.Vector3f
 import java.io.File
 import kotlin.math.sqrt
@@ -71,7 +73,8 @@ class AIWorldRenderer {
         animator?.update(dt)
         val hasAnim = animator != null && boneBuffer.hasBones()
         if (hasAnim) boneBuffer.update()
-        val cam = Minecraft.getInstance().gameRenderer.mainCamera().position()
+        val mc = Minecraft.getInstance()
+        val cam = mc.gameRenderer.mainCamera().position()
         val cullDist = CULL_DISTANCE + c.boundRadius * instance.scale
         if (instance.distanceSq(cam.x, cam.y, cam.z) > cullDist * cullDist) return
         val modelMat = instance.buildModelMatrix(cam.x, cam.y, cam.z)
@@ -79,7 +82,11 @@ class AIWorldRenderer {
         tmpCamVec.set(cam.x.toFloat(), cam.y.toFloat(), cam.z.toFloat())
         tmpShadowCenter.set(c.boundCenter); objectMat.transformPosition(tmpShadowCenter)
         val shadowRadius = c.boundRadius * instance.scale
-        objectBuffer.update(objectMat)
+        val level = mc.level
+        val lightPos = BlockPos.containing(instance.pos.x.toDouble(), instance.pos.y.toDouble(), instance.pos.z.toDouble())
+        val bl = level?.getBrightness(LightLayer.BLOCK, lightPos) ?: 15
+        val sl = level?.getBrightness(LightLayer.SKY, lightPos) ?: 15
+        objectBuffer.update(objectMat, bl, sl)
         val needShadow = checkShadowDirty(tmpShadowCenter, shadowRadius, hasAnim)
         if (needShadow) shadowBuffer.update(tmpShadowCenter, shadowRadius, sqrt(instance.distanceSq(cam.x, cam.y, cam.z)).toFloat(), SHADOW_LIGHT, shadowMap.size)
         val encoder = RenderSystem.getDevice().createCommandEncoder()

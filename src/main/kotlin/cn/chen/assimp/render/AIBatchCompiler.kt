@@ -52,7 +52,7 @@ class AIBatchCompiler(private val texReg: AITextureRegistry) {
                 val bc = mat?.baseColorFactor
                 val br = bc?.x ?: 1f; val bg = bc?.y ?: 1f; val bb = bc?.z ?: 1f; val ba = bc?.w ?: 1f
                 val ds = mat?.doubleSided ?: false
-                val usePbr = true
+                val usePbr = texReg.hasPbrTextures(mIdx)
                 val hasTransmission = (mat?.khrExtensions?.transmission?.factor ?: 0f) > 0.01f
                 val texHasAlpha = texReg.hasAlphaPixels(mIdx)
                 val blendNeedsAlpha = mat?.alphaMode == AIAlphaMode.BLEND && texHasAlpha

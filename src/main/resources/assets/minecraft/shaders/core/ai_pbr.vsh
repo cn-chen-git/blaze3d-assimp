@@ -7,6 +7,7 @@
 #moj_import <minecraft:ai_skinning.glsl>
 layout(std140) uniform ObjectMatrices {
     mat4 ObjectToWorld;
+    vec4 WorldLight;
 };
 in vec3 Position;
 in vec4 Color;
@@ -58,7 +59,7 @@ void main() {
     sphericalVertexDistance = fog_spherical_distance(worldPos.xyz);
     cylindricalVertexDistance = fog_cylindrical_distance(worldPos.xyz);
     vertexColor = Color;
-    lightMapColor = sample_lightmap(Sampler2, UV2);
+    lightMapColor = sample_lightmap(Sampler2, ivec2(int(WorldLight.x) * 16, int(WorldLight.y) * 16));
     overlayColor = texelFetch(Sampler1, UV1, 0);
     texCoord0 = UV0;
 }

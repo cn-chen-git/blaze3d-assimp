@@ -5,6 +5,7 @@
 #endif
 layout(std140) uniform ObjectMatrices {
     mat4 ObjectToWorld;
+    vec4 WorldLight;
 };
 layout(std140) uniform ShadowData {
     mat4 ShadowViewProj[2];
