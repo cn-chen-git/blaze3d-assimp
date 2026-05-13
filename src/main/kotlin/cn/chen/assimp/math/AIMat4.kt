@@ -74,6 +74,16 @@ class AIMat4(val m: FloatArray = floatArrayOf(1f,0f,0f,0f, 0f,1f,0f,0f, 0f,0f,1f
         fun identity() = AIMat4()
         fun translation(x: Float, y: Float, z: Float) = AIMat4(floatArrayOf(1f,0f,0f,x, 0f,1f,0f,y, 0f,0f,1f,z, 0f,0f,0f,1f))
         fun scaling(x: Float, y: Float, z: Float) = AIMat4(floatArrayOf(x,0f,0f,0f, 0f,y,0f,0f, 0f,0f,z,0f, 0f,0f,0f,1f))
+        fun trsInto(px: Float, py: Float, pz: Float, qx: Float, qy: Float, qz: Float, qw: Float, sx: Float, sy: Float, sz: Float, out: AIMat4) {
+            val xx = qx*qx; val yy = qy*qy; val zz = qz*qz
+            val xy = qx*qy; val xz = qx*qz; val yz = qy*qz
+            val wx = qw*qx; val wy = qw*qy; val wz = qw*qz
+            val m = out.m
+            m[0] = (1f-2f*(yy+zz))*sx; m[1] = 2f*(xy+wz)*sy; m[2] = 2f*(xz-wy)*sz; m[3] = px
+            m[4] = 2f*(xy-wz)*sx; m[5] = (1f-2f*(xx+zz))*sy; m[6] = 2f*(yz+wx)*sz; m[7] = py
+            m[8] = 2f*(xz+wy)*sx; m[9] = 2f*(yz-wx)*sy; m[10] = (1f-2f*(xx+yy))*sz; m[11] = pz
+            m[12] = 0f; m[13] = 0f; m[14] = 0f; m[15] = 1f
+        }
         fun perspective(fov: Float, aspect: Float, near: Float, far: Float): AIMat4 {
             val t = kotlin.math.tan(fov * 0.5f)
             val r = AIMat4(FloatArray(16))
