@@ -15,12 +15,6 @@ class AIWorldRenderer {
     private val texReg = AITextureRegistry()
     private val compiler = AIBatchCompiler(texReg)
     private val boneBuffer = AIBoneBuffer()
-    var playerReflection = false
-    var dynamicLights = true
-    var rimIntensity = 0.4f
-    var bloomIntensity = 2.0f
-    var blockShadows = true
-    var shadowStrength = 0.6f
     private var compiled: AIBatchCompiler.Result? = null
     private var lastTime = System.nanoTime()
     private val tmpCamVec = Vector3f()
@@ -72,7 +66,7 @@ class AIWorldRenderer {
             boneBuffer.flush(encoder)
             encoder.submit()
         }
-        AIGpuPassRenderer.render(c.batches, c.passRanges, c.mergedVbo, modelMat, objectMat, tmpCamVec, tmpCamLook, instance.scale, boneBuffer.slice(), null, null, null, null, null, null, null)
+        AIGpuPassRenderer.render(c.batches, c.passRanges, c.mergedVbo, modelMat, objectMat, tmpCamVec, tmpCamLook, instance.scale, boneBuffer.slice())
     }
     fun info(): List<String> {
         val lines = mutableListOf<String>()
@@ -86,7 +80,6 @@ class AIWorldRenderer {
             lines.add("bound center=(${c.boundCenter.x},${c.boundCenter.y},${c.boundCenter.z}) radius=${c.boundRadius}")
         }
         lines.add("pos=${instance.pos} scale=${instance.scale} rot=${instance.rot}")
-        lines.add("fx: lights=$dynamicLights player=$playerReflection rim=$rimIntensity bloom=$bloomIntensity blockShadow=$blockShadows shadowStrength=$shadowStrength")
         s?.materials?.forEachIndexed { i, m ->
             lines.add("  mat[$i] ${m.name} alpha=${m.alphaMode} emissive=${m.emissiveFactor.toList()} ds=${m.doubleSided} tex=${m.textures.keys}")
         }

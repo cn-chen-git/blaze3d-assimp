@@ -24,7 +24,7 @@ class AIBatchCompiler(private val texReg: AITextureRegistry) {
     ) {
         fun close() = mergedVbo.close()
     }
-    private data class BatchKey(val texId: Identifier, val normalId: Identifier?, val mrId: Identifier?, val emissiveId: Identifier?, val pass: AIRenderPass, val doubleSided: Boolean, val matIdx: Int)
+    private data class BatchKey(val texId: Identifier, val normalId: Identifier?, val pass: AIRenderPass)
     private class CollectedMesh(val key: BatchKey, val usesAiVertexFormat: Boolean) {
         val verts = mutableListOf<FloatArray>()
         val aabbMin = Vector3f(Float.MAX_VALUE)
@@ -65,9 +65,7 @@ class AIBatchCompiler(private val texReg: AITextureRegistry) {
                 val key = BatchKey(
                     texReg[mIdx],
                     if (useAiPipeline) texReg.getNormal(mIdx) else null,
-                    null,
-                    null,
-                    pass, ds, mIdx
+                    pass
                 )
                 val cm = grouped.getOrPut(key) { CollectedMesh(key, useAiPipeline) }
                 val verts = mesh.vertices; val indices = mesh.indices
@@ -123,7 +121,7 @@ class AIBatchCompiler(private val texReg: AITextureRegistry) {
             val base = vertOffset
             for (v in cm.verts) writeVert(mergedBuf, v, cm.usesAiVertexFormat)
             vertOffset += cm.verts.size
-            AIGpuBatch(base, qc, cm.key.texId, cm.key.normalId, cm.key.mrId, cm.key.emissiveId, cm.key.pass, cm.key.doubleSided, cm.key.matIdx, cm.aabbMin, cm.aabbMax)
+            AIGpuBatch(base, qc, cm.key.texId, cm.key.normalId, cm.key.pass, cm.aabbMin, cm.aabbMax)
         }
         mergedBuf.flip()
         val mergedVbo = device.createBuffer({ "ai_merged_vbo" }, GpuBuffer.USAGE_VERTEX, mergedBuf)

@@ -22,6 +22,5 @@ data class AIMaterial(
     val textures: MutableMap<AITexType, AITexInfo> = mutableMapOf(),
     val khrExtensions: AIKhrExt = AIKhrExt()
 ) {
-    fun hasTexture(type: AITexType) = textures.containsKey(type)
     fun getTexture(type: AITexType) = textures[type]
 }

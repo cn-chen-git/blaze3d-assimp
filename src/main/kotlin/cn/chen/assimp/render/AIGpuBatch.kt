@@ -6,11 +6,7 @@ class AIGpuBatch(
     val quadCount: Int,
     val texId: Identifier,
     val normalMapId: Identifier?,
-    val mrMapId: Identifier?,
-    val emissiveMapId: Identifier?,
     val pass: AIRenderPass,
-    val doubleSided: Boolean,
-    val matIdx: Int,
     aabbMin: Vector3f,
     aabbMax: Vector3f
 ) {

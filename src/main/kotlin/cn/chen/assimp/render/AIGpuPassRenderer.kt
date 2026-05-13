@@ -4,7 +4,6 @@ import com.mojang.blaze3d.buffers.GpuBuffer
 import com.mojang.blaze3d.buffers.GpuBufferSlice
 import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.textures.FilterMode
-import com.mojang.blaze3d.textures.GpuTextureView
 import net.minecraft.client.Minecraft
 import net.minecraft.resources.Identifier
 import org.joml.Matrix4f
@@ -23,14 +22,7 @@ object AIGpuPassRenderer {
         camPos: Vector3f,
         camLook: Vector3f,
         scale: Float,
-        boneSlice: GpuBufferSlice?,
-        objectSlice: GpuBufferSlice?,
-        shadowSlice: GpuBufferSlice?,
-        shadowView: GpuTextureView?,
-        environmentMap: AIEnvironmentMap?,
-        materialBuffer: AIMaterialBuffer?,
-        lightsSlice: GpuBufferSlice?,
-        worldProbe: AIWorldProbe?
+        boneSlice: GpuBufferSlice?
     ) {
         val mc = Minecraft.getInstance()
         val mainTarget = mc.gameRenderer.mainRenderTarget()

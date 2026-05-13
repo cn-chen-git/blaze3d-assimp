@@ -97,7 +97,7 @@ kt_jvm_library(
 )
 fabric_mod_jar(
     name = "fabric_mod",
-    output = "lwjgl-assimp-1.0.0.jar",
+    output = "blaze3d-assimp-1.0.0.jar",
     version = "1.0.0",
     srcs = [":mod"],
     jars_in_jar = [

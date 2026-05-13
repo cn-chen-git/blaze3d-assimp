@@ -1,5 +1,5 @@
 module(
-    name = "lwjgl-assimp",
+    name = "blaze3d-assimp",
     version = "1.0.0",
 )
 bazel_dep(name = "rules_java", version = "9.3.0")
