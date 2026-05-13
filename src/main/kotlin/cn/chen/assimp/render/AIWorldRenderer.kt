@@ -89,13 +89,13 @@ class AIWorldRenderer {
         if (!loaded || !instance.visible) return
         val now = System.nanoTime()
         val dt = (now - lastTime) / 1e9; lastTime = now
-        animator?.update(dt)
-        val hasAnim = animator != null && boneBuffer.hasBones()
-        if (hasAnim) boneBuffer.update()
         val mc = Minecraft.getInstance()
         val cam = mc.gameRenderer.mainCamera().position()
         val cullDist = CULL_DISTANCE + c.boundRadius * instance.scale
         if (instance.distanceSq(cam.x, cam.y, cam.z) > cullDist * cullDist) return
+        animator?.update(dt)
+        val hasAnim = animator != null && boneBuffer.hasBones()
+        if (hasAnim) boneBuffer.update()
         val modelMat = instance.buildModelMatrix(cam.x, cam.y, cam.z)
         val objectMat = instance.buildObjectMatrix()
         tmpCamVec.set(cam.x.toFloat(), cam.y.toFloat(), cam.z.toFloat())

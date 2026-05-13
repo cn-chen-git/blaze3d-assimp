@@ -157,10 +157,10 @@ class AIBatchCompiler(private val texReg: AITextureRegistry) {
             return (bw shl 24) or (bz shl 16) or (by shl 8) or bx
         }
         private fun packBoneIds(ids: IntArray): Int {
-            val a = ids[0].coerceIn(0, 255) and 0xFF
-            val b = ids[1].coerceIn(0, 255) and 0xFF
-            val c = ids[2].coerceIn(0, 255) and 0xFF
-            val d = ids[3].coerceIn(0, 255) and 0xFF
+            val a = ids[0].coerceAtLeast(0) and 0xFF
+            val b = ids[1].coerceAtLeast(0) and 0xFF
+            val c = ids[2].coerceAtLeast(0) and 0xFF
+            val d = ids[3].coerceAtLeast(0) and 0xFF
             return (d shl 24) or (c shl 16) or (b shl 8) or a
         }
         private fun packBoneWeights(w: FloatArray): Int {

@@ -154,9 +154,13 @@ object AIModelLoader {
             val uv1 = texCoords1?.get(v)
             val col = colors0?.get(v)
             val bw = boneWeightsMap[v]
-            val boneIds = IntArray(4) { -1 }
-            val boneWts = FloatArray(4) { 0f }
-            bw?.sortedByDescending { it.second }?.take(4)?.forEachIndexed { i, (id, wt) -> boneIds[i] = id; boneWts[i] = wt }
+            val boneIds = IntArray(4)
+            val boneWts = FloatArray(4)
+            if (bw != null && bw.isNotEmpty()) {
+                bw.sortedByDescending { it.second }.take(4).forEachIndexed { i, (id, wt) -> boneIds[i] = id; boneWts[i] = wt }
+                val sum = boneWts[0] + boneWts[1] + boneWts[2] + boneWts[3]
+                if (sum > 0f) { val inv = 1f / sum; boneWts[0] *= inv; boneWts[1] *= inv; boneWts[2] *= inv; boneWts[3] *= inv }
+            }
             AIVertex(
                 position = AIVec3(pos.x(), pos.y(), pos.z()),
                 normal = if (norm != null) AIVec3(norm.x(), norm.y(), norm.z()) else AIVec3(0f, 1f, 0f),
