@@ -2,13 +2,14 @@ package cn.chen.assimp.core
 import cn.chen.assimp.math.AIVec3
 import cn.chen.assimp.math.AIQuat
 import cn.chen.assimp.math.AIMat4
-data class AIVecKey(val time: Double, val value: AIVec3)
-data class AIQuatKey(val time: Double, val value: AIQuat)
 class AIAnimChannel(
     val nodeName: String,
-    val positionKeys: List<AIVecKey>,
-    val rotationKeys: List<AIQuatKey>,
-    val scalingKeys: List<AIVecKey>
+    val posTimes: DoubleArray,
+    val posVals: FloatArray,
+    val rotTimes: DoubleArray,
+    val rotVals: FloatArray,
+    val sclTimes: DoubleArray,
+    val sclVals: FloatArray
 ) {
     private var posHint = 0
     private var rotHint = 0
@@ -16,42 +17,40 @@ class AIAnimChannel(
     private val tmpPos = AIVec3()
     private val tmpRot = AIQuat()
     private val tmpScl = AIVec3(1f, 1f, 1f)
-    fun interpolatePosition(time: Double): AIVec3 { val out = AIVec3(); interpolatePositionInto(time, out); return out }
-    fun interpolateRotation(time: Double): AIQuat { val out = AIQuat(); interpolateRotationInto(time, out); return out }
-    fun interpolateScaling(time: Double): AIVec3 { val out = AIVec3(1f, 1f, 1f); interpolateScalingInto(time, out); return out }
     fun interpolatePositionInto(time: Double, out: AIVec3) {
-        val keys = positionKeys; val n = keys.size
+        val t = posTimes; val v = posVals; val n = t.size
         if (n == 0) { out.x = 0f; out.y = 0f; out.z = 0f; return }
-        if (n == 1) { val v = keys[0].value; out.x = v.x; out.y = v.y; out.z = v.z; return }
-        val i = findIdxPos(time, n); posHint = i
-        val k0 = keys[i]; val k1 = keys[i + 1]
-        val d = k1.time - k0.time
-        val f = if (d > 0.0) ((time - k0.time) / d).toFloat().coerceIn(0f, 1f) else 0f
-        val a = k0.value; val b = k1.value
-        out.x = a.x + (b.x - a.x) * f; out.y = a.y + (b.y - a.y) * f; out.z = a.z + (b.z - a.z) * f
+        if (n == 1) { out.x = v[0]; out.y = v[1]; out.z = v[2]; return }
+        val i = findIdx(t, posHint, n, time); posHint = i
+        val i3 = i * 3; val j3 = i3 + 3
+        val d = t[i + 1] - t[i]
+        val f = if (d > 0.0) ((time - t[i]) / d).toFloat().coerceIn(0f, 1f) else 0f
+        out.x = v[i3] + (v[j3] - v[i3]) * f
+        out.y = v[i3 + 1] + (v[j3 + 1] - v[i3 + 1]) * f
+        out.z = v[i3 + 2] + (v[j3 + 2] - v[i3 + 2]) * f
     }
     fun interpolateRotationInto(time: Double, out: AIQuat) {
-        val keys = rotationKeys; val n = keys.size
+        val t = rotTimes; val v = rotVals; val n = t.size
         if (n == 0) { out.x = 0f; out.y = 0f; out.z = 0f; out.w = 1f; return }
-        if (n == 1) { val q = keys[0].value; out.x = q.x; out.y = q.y; out.z = q.z; out.w = q.w; return }
-        val i = findIdxRot(time, n); rotHint = i
-        val k0 = keys[i]; val k1 = keys[i + 1]
-        val d = k1.time - k0.time
-        val f = if (d > 0.0) ((time - k0.time) / d).toFloat().coerceIn(0f, 1f) else 0f
-        k0.value.slerpInto(k1.value, f, out)
+        if (n == 1) { out.x = v[0]; out.y = v[1]; out.z = v[2]; out.w = v[3]; return }
+        val i = findIdx(t, rotHint, n, time); rotHint = i
+        val i4 = i * 4; val j4 = i4 + 4
+        val d = t[i + 1] - t[i]
+        val f = if (d > 0.0) ((time - t[i]) / d).toFloat().coerceIn(0f, 1f) else 0f
+        AIQuat.slerpComponentsInto(v[i4], v[i4 + 1], v[i4 + 2], v[i4 + 3], v[j4], v[j4 + 1], v[j4 + 2], v[j4 + 3], f, out)
     }
     fun interpolateScalingInto(time: Double, out: AIVec3) {
-        val keys = scalingKeys; val n = keys.size
+        val t = sclTimes; val v = sclVals; val n = t.size
         if (n == 0) { out.x = 1f; out.y = 1f; out.z = 1f; return }
-        if (n == 1) { val v = keys[0].value; out.x = v.x; out.y = v.y; out.z = v.z; return }
-        val i = findIdxScl(time, n); sclHint = i
-        val k0 = keys[i]; val k1 = keys[i + 1]
-        val d = k1.time - k0.time
-        val f = if (d > 0.0) ((time - k0.time) / d).toFloat().coerceIn(0f, 1f) else 0f
-        val a = k0.value; val b = k1.value
-        out.x = a.x + (b.x - a.x) * f; out.y = a.y + (b.y - a.y) * f; out.z = a.z + (b.z - a.z) * f
+        if (n == 1) { out.x = v[0]; out.y = v[1]; out.z = v[2]; return }
+        val i = findIdx(t, sclHint, n, time); sclHint = i
+        val i3 = i * 3; val j3 = i3 + 3
+        val d = t[i + 1] - t[i]
+        val f = if (d > 0.0) ((time - t[i]) / d).toFloat().coerceIn(0f, 1f) else 0f
+        out.x = v[i3] + (v[j3] - v[i3]) * f
+        out.y = v[i3 + 1] + (v[j3 + 1] - v[i3 + 1]) * f
+        out.z = v[i3 + 2] + (v[j3 + 2] - v[i3 + 2]) * f
     }
-    fun computeTransform(time: Double): AIMat4 { val out = AIMat4(); computeTransformInto(time, out); return out }
     fun computeTransformInto(time: Double, out: AIMat4) {
         interpolatePositionInto(time, tmpPos)
         interpolateRotationInto(time, tmpRot)
@@ -67,28 +66,11 @@ class AIAnimChannel(
         m[8] = 2f*(xz+wy)*sx; m[9] = 2f*(yz-wx)*sy; m[10] = (1f-2f*(xx+yy))*sz; m[11] = tmpPos.z
         m[12] = 0f; m[13] = 0f; m[14] = 0f; m[15] = 1f
     }
-    private fun findIdxPos(time: Double, n: Int): Int {
-        val h = posHint
-        if (h < n - 1 && time >= positionKeys[h].time && time < positionKeys[h + 1].time) return h
-        if (h + 1 < n - 1 && time >= positionKeys[h + 1].time && time < positionKeys[h + 2].time) return h + 1
+    private fun findIdx(times: DoubleArray, hint: Int, n: Int, time: Double): Int {
+        if (hint < n - 1 && time >= times[hint] && time < times[hint + 1]) return hint
+        if (hint + 1 < n - 1 && time >= times[hint + 1] && time < times[hint + 2]) return hint + 1
         var lo = 0; var hi = n - 1
-        while (lo < hi - 1) { val mid = (lo + hi) ushr 1; if (positionKeys[mid].time <= time) lo = mid else hi = mid }
-        return lo.coerceAtMost(n - 2)
-    }
-    private fun findIdxRot(time: Double, n: Int): Int {
-        val h = rotHint
-        if (h < n - 1 && time >= rotationKeys[h].time && time < rotationKeys[h + 1].time) return h
-        if (h + 1 < n - 1 && time >= rotationKeys[h + 1].time && time < rotationKeys[h + 2].time) return h + 1
-        var lo = 0; var hi = n - 1
-        while (lo < hi - 1) { val mid = (lo + hi) ushr 1; if (rotationKeys[mid].time <= time) lo = mid else hi = mid }
-        return lo.coerceAtMost(n - 2)
-    }
-    private fun findIdxScl(time: Double, n: Int): Int {
-        val h = sclHint
-        if (h < n - 1 && time >= scalingKeys[h].time && time < scalingKeys[h + 1].time) return h
-        if (h + 1 < n - 1 && time >= scalingKeys[h + 1].time && time < scalingKeys[h + 2].time) return h + 1
-        var lo = 0; var hi = n - 1
-        while (lo < hi - 1) { val mid = (lo + hi) ushr 1; if (scalingKeys[mid].time <= time) lo = mid else hi = mid }
+        while (lo < hi - 1) { val mid = (lo + hi) ushr 1; if (times[mid] <= time) lo = mid else hi = mid }
         return lo.coerceAtMost(n - 2)
     }
 }
@@ -98,7 +80,9 @@ class AIAnimClip(
     val ticksPerSecond: Double,
     val channels: List<AIAnimChannel>
 ) {
-    private val channelMap = channels.associateBy { it.nodeName }
-    fun getChannel(nodeName: String) = channelMap[nodeName]
-    val durationSeconds get() = if (ticksPerSecond > 0.0) duration / ticksPerSecond else duration
+    private val channelMap: HashMap<String, AIAnimChannel> = HashMap(channels.size * 2)
+    init { for (c in channels) channelMap[c.nodeName] = c }
+    fun getChannel(nodeName: String): AIAnimChannel? = channelMap[nodeName]
+    val tps: Double get() = if (ticksPerSecond > 0.0) ticksPerSecond else 25.0
+    val durationSeconds: Double get() = duration / tps
 }

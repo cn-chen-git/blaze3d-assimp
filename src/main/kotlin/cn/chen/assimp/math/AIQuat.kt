@@ -37,6 +37,22 @@ data class AIQuat(var x: Float = 0f, var y: Float = 0f, var z: Float = 0f, var w
         m[12] = 0f; m[13] = 0f; m[14] = 0f; m[15] = 1f
     }
     companion object {
+        fun slerpComponentsInto(ax: Float, ay: Float, az: Float, aw: Float, bx: Float, by: Float, bz: Float, bw: Float, t: Float, out: AIQuat) {
+            var dot = ax * bx + ay * by + az * bz + aw * bw
+            var ox = bx; var oy = by; var oz = bz; var ow = bw
+            if (dot < 0f) { dot = -dot; ox = -ox; oy = -oy; oz = -oz; ow = -ow }
+            if (dot > 0.9995f) {
+                val rx = ax + (ox - ax) * t; val ry = ay + (oy - ay) * t; val rz = az + (oz - az) * t; val rw = aw + (ow - aw) * t
+                val l = sqrt(rx*rx + ry*ry + rz*rz + rw*rw)
+                if (l > 0f) { out.x = rx/l; out.y = ry/l; out.z = rz/l; out.w = rw/l } else { out.x = ax; out.y = ay; out.z = az; out.w = aw }
+                return
+            }
+            val theta0 = acos(dot); val theta = theta0 * t
+            val sinTheta = sin(theta); val sinTheta0 = sin(theta0)
+            val s0 = cos(theta) - dot * sinTheta / sinTheta0
+            val s1 = sinTheta / sinTheta0
+            out.x = ax * s0 + ox * s1; out.y = ay * s0 + oy * s1; out.z = az * s0 + oz * s1; out.w = aw * s0 + ow * s1
+        }
         fun fromMatrix(m: AIMat4): AIQuat {
             val trace = m.m[0] + m.m[5] + m.m[10]
             return when {

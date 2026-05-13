@@ -1,7 +1,5 @@
 package cn.chen.assimp.loader
 import cn.chen.assimp.core.AIAnimChannel as OurChannel
-import cn.chen.assimp.core.AIVecKey as OurVecKey
-import cn.chen.assimp.core.AIQuatKey as OurQuatKey
 import cn.chen.assimp.core.AIBonePose as OurBonePose
 import cn.chen.assimp.core.AIBoneInfo
 import cn.chen.assimp.core.AIMeshData
@@ -342,19 +340,15 @@ object AIModelLoader {
         val channelPtrs = anim.mChannels()!!
         val channels = (0 until numChannels).map { i ->
             val channel = AINodeAnim.create(channelPtrs.get(i))
-            val posKeys = (0 until channel.mNumPositionKeys()).map { k ->
-                val key = channel.mPositionKeys()!!.get(k)
-                OurVecKey(key.mTime(), AIVec3(key.mValue().x(), key.mValue().y(), key.mValue().z()))
-            }
-            val rotKeys = (0 until channel.mNumRotationKeys()).map { k ->
-                val key = channel.mRotationKeys()!!.get(k)
-                OurQuatKey(key.mTime(), AIQuat(key.mValue().x(), key.mValue().y(), key.mValue().z(), key.mValue().w()))
-            }
-            val scaleKeys = (0 until channel.mNumScalingKeys()).map { k ->
-                val key = channel.mScalingKeys()!!.get(k)
-                OurVecKey(key.mTime(), AIVec3(key.mValue().x(), key.mValue().y(), key.mValue().z()))
-            }
-            OurChannel(channel.mNodeName().dataString(), posKeys, rotKeys, scaleKeys)
+            val np = channel.mNumPositionKeys(); val nr = channel.mNumRotationKeys(); val ns = channel.mNumScalingKeys()
+            val posTimes = DoubleArray(np); val posVals = FloatArray(np * 3)
+            val rotTimes = DoubleArray(nr); val rotVals = FloatArray(nr * 4)
+            val sclTimes = DoubleArray(ns); val sclVals = FloatArray(ns * 3)
+            val pk = channel.mPositionKeys()!!; val rk = channel.mRotationKeys()!!; val sk = channel.mScalingKeys()!!
+            for (k in 0 until np) { val key = pk.get(k); posTimes[k] = key.mTime(); val v = key.mValue(); val o = k*3; posVals[o] = v.x(); posVals[o+1] = v.y(); posVals[o+2] = v.z() }
+            for (k in 0 until nr) { val key = rk.get(k); rotTimes[k] = key.mTime(); val v = key.mValue(); val o = k*4; rotVals[o] = v.x(); rotVals[o+1] = v.y(); rotVals[o+2] = v.z(); rotVals[o+3] = v.w() }
+            for (k in 0 until ns) { val key = sk.get(k); sclTimes[k] = key.mTime(); val v = key.mValue(); val o = k*3; sclVals[o] = v.x(); sclVals[o+1] = v.y(); sclVals[o+2] = v.z() }
+            OurChannel(channel.mNodeName().dataString(), posTimes, posVals, rotTimes, rotVals, sclTimes, sclVals)
         }
         return AIAnimClip(anim.mName().dataString(), anim.mDuration(), anim.mTicksPerSecond(), channels)
     }
