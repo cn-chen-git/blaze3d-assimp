@@ -39,6 +39,25 @@ object DeBug {
                 .then(ClientCommands.literal("anim").then(ClientCommands.argument("i", IntegerArgumentType.integer(0)).executes { c ->
                     renderer.animator?.play(IntegerArgumentType.getInteger(c, "i")); msg(c.source, "§a播放动画"); 1
                 }))
+                .then(ClientCommands.literal("animname").then(ClientCommands.argument("n", StringArgumentType.greedyString()).executes { c ->
+                    renderer.animator?.play(StringArgumentType.getString(c, "n")); msg(c.source, "§a播放: ${StringArgumentType.getString(c, "n")}"); 1
+                }))
+                .then(ClientCommands.literal("animfade").then(ClientCommands.argument("i", IntegerArgumentType.integer(0))
+                    .then(ClientCommands.argument("d", FloatArgumentType.floatArg(0f, 10f)).executes { c ->
+                        renderer.animator?.crossFade(IntegerArgumentType.getInteger(c, "i"), FloatArgumentType.getFloat(c, "d"))
+                        msg(c.source, "§a交叉过渡 -> ${IntegerArgumentType.getInteger(c, "i")} (${FloatArgumentType.getFloat(c, "d")}s)"); 1
+                    })))
+                .then(ClientCommands.literal("animfadename").then(ClientCommands.argument("n", StringArgumentType.string())
+                    .then(ClientCommands.argument("d", FloatArgumentType.floatArg(0f, 10f)).executes { c ->
+                        renderer.animator?.crossFade(StringArgumentType.getString(c, "n"), FloatArgumentType.getFloat(c, "d"))
+                        msg(c.source, "§a交叉过渡 -> ${StringArgumentType.getString(c, "n")}"); 1
+                    })))
+                .then(ClientCommands.literal("animspeed").then(ClientCommands.argument("v", FloatArgumentType.floatArg(0f, 10f)).executes { c ->
+                    renderer.animator?.let { it.speed = FloatArgumentType.getFloat(c, "v") }; msg(c.source, "§a速度: ${renderer.animator?.speed}"); 1
+                }))
+                .then(ClientCommands.literal("animlist").executes { c ->
+                    val a = renderer.animator; if (a == null) msg(c.source, "§c无动画") else a.animationNames.forEachIndexed { i, n -> msg(c.source, "§7[$i] $n") }; 1
+                })
                 .then(ClientCommands.literal("stop").executes { c -> renderer.animator?.stop(); msg(c.source, "§a停止"); 1 })
                 .then(ClientCommands.literal("here").executes { c ->
                     Minecraft.getInstance().player?.let { p -> renderer.instance.pos = Vector3f(p.x.toFloat(), p.y.toFloat(), p.z.toFloat()) }
