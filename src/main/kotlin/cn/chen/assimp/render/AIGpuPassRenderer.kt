@@ -22,6 +22,7 @@ object AIGpuPassRenderer {
         modelMat: Matrix4f,
         objectMat: Matrix4f,
         camPos: Vector3f,
+        camLook: Vector3f,
         scale: Float,
         boneSlice: GpuBufferSlice?,
         objectSlice: GpuBufferSlice?,
@@ -75,7 +76,7 @@ object AIGpuPassRenderer {
             var lastMat = -1
             for (i in range) {
                 val batch = batches[i]
-                if (!isBatchVisible(batch, objectMat, camPos, scale)) continue
+                if (!isBatchVisible(batch, objectMat, camPos, camLook, scale)) continue
                 if (batch.texId != lastTex) {
                     val tex = tm.getTexture(batch.texId) ?: continue
                     rp.bindTexture("Sampler0", tex.textureView, tex.sampler)
@@ -107,17 +108,22 @@ object AIGpuPassRenderer {
         }
         encoder.submit()
     }
-    private fun isBatchVisible(batch: AIGpuBatch, objectMat: Matrix4f, camPos: Vector3f, scale: Float): Boolean {
+    private fun isBatchVisible(batch: AIGpuBatch, objectMat: Matrix4f, camPos: Vector3f, camLook: Vector3f, scale: Float): Boolean {
         tmpCenter.set(batch.aabbCenter)
         objectMat.transformPosition(tmpCenter)
         val dx = tmpCenter.x - camPos.x; val dy = tmpCenter.y - camPos.y; val dz = tmpCenter.z - camPos.z
         val dist2 = dx * dx + dy * dy + dz * dz
-        val r = batch.aabbRadius * scale + BATCH_CULL_PADDING
-        return dist2 <= r * r
+        val sr = batch.aabbRadius * scale
+        val r = sr + BATCH_CULL_PADDING
+        if (dist2 > r * r) return false
+        val forward = dx * camLook.x + dy * camLook.y + dz * camLook.z
+        if (forward < -(sr + BEHIND_CAM_PADDING)) return false
+        return true
     }
     private val PASS_ORDER = arrayOf(
         AIRenderPass.OPAQUE_CULL, AIRenderPass.OPAQUE, AIRenderPass.EMISSIVE, AIRenderPass.TRANSLUCENT,
         AIRenderPass.PBR_OPAQUE_CULL, AIRenderPass.PBR_OPAQUE, AIRenderPass.PBR_TRANSLUCENT
     )
     private const val BATCH_CULL_PADDING = 64.0f
+    private const val BEHIND_CAM_PADDING = 4.0f
 }

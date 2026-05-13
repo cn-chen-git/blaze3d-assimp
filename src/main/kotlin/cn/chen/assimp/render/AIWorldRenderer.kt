@@ -39,6 +39,7 @@ class AIWorldRenderer {
     private var lastTime = System.nanoTime()
     private val tmpShadowCenter = Vector3f()
     private val tmpCamVec = Vector3f()
+    private val tmpCamLook = Vector3f(0f, 0f, -1f)
     private var shadowDirty = true
     private var shadowFrame = 0
     private val lastShadowCenter = Vector3f()
@@ -90,7 +91,10 @@ class AIWorldRenderer {
         val now = System.nanoTime()
         val dt = (now - lastTime) / 1e9; lastTime = now
         val mc = Minecraft.getInstance()
-        val cam = mc.gameRenderer.mainCamera().position()
+        val camera = mc.gameRenderer.mainCamera()
+        val cam = camera.position()
+        val look = camera.lookVector
+        tmpCamLook.set(look.x, look.y, look.z)
         val cullDist = CULL_DISTANCE + c.boundRadius * instance.scale
         if (instance.distanceSq(cam.x, cam.y, cam.z) > cullDist * cullDist) return
         animator?.update(dt)
@@ -119,7 +123,7 @@ class AIWorldRenderer {
         worldProbe.flush(encoder)
         encoder.submit()
         if (needShadow) AICascadeShadowRenderer.render(c.batches, c.passRanges, c.mergedVbo, boneBuffer.slice(), objectBuffer.slice(), shadowBuffer.slice(), shadowMap, materialBuffer)
-        AIGpuPassRenderer.render(c.batches, c.passRanges, c.mergedVbo, modelMat, objectMat, tmpCamVec, instance.scale, boneBuffer.slice(), objectBuffer.slice(), shadowBuffer.slice(), shadowMap.view(), environmentMap, materialBuffer, lightsBuffer.slice(), worldProbe)
+        AIGpuPassRenderer.render(c.batches, c.passRanges, c.mergedVbo, modelMat, objectMat, tmpCamVec, tmpCamLook, instance.scale, boneBuffer.slice(), objectBuffer.slice(), shadowBuffer.slice(), shadowMap.view(), environmentMap, materialBuffer, lightsBuffer.slice(), worldProbe)
     }
     private val tmpPlayerPos = Vector3f()
     private val tmpPlayerColor = Vector3f()

@@ -21,6 +21,7 @@ class AIWorldProbe {
     private val origin = Vector3f()
     private var lastFrame = -REBUILD_INTERVAL
     private var frame = 0
+    private var rebuildPhase = -1
     private val lastCenter = Vector3f(Float.NaN, Float.NaN, Float.NaN)
     private var ubo: GpuBuffer? = null
     private var uboMem: ByteBuffer? = null
@@ -50,22 +51,33 @@ class AIWorldProbe {
     fun rebuild(modelCenter: Vector3f, shadowEnabled: Boolean, shadowStrength: Float) {
         if (!initialized) return
         frame++
-        val dx = modelCenter.x - lastCenter.x; val dy = modelCenter.y - lastCenter.y; val dz = modelCenter.z - lastCenter.z
-        val moved = !lastCenter.x.isFinite() || dx * dx + dy * dy + dz * dz > MOVE_THRESHOLD * MOVE_THRESHOLD
-        val rebuildVoxels = shadowEnabled && (moved || frame - lastFrame >= REBUILD_INTERVAL)
-        if (rebuildVoxels) {
-            lastFrame = frame; lastCenter.set(modelCenter)
-            sampleVoxels(modelCenter)
+        if (shadowEnabled) {
+            val dx = modelCenter.x - lastCenter.x; val dy = modelCenter.y - lastCenter.y; val dz = modelCenter.z - lastCenter.z
+            val moved = !lastCenter.x.isFinite() || dx * dx + dy * dy + dz * dz > MOVE_THRESHOLD * MOVE_THRESHOLD
+            if (rebuildPhase < 0 && (moved || frame - lastFrame >= REBUILD_INTERVAL)) {
+                rebuildPhase = 0; lastCenter.set(modelCenter)
+                val ox = (modelCenter.x - GRID / 2f).toInt(); val oy = (modelCenter.y - GRID / 2f).toInt(); val oz = (modelCenter.z - GRID / 2f).toInt()
+                origin.set(ox.toFloat(), oy.toFloat(), oz.toFloat())
+            }
+            if (rebuildPhase >= 0) {
+                sampleSlab(rebuildPhase)
+                rebuildPhase++
+                if (rebuildPhase >= SLAB_COUNT) {
+                    rebuildPhase = -1; lastFrame = frame
+                    (Minecraft.getInstance().textureManager.getTexture(id) as? DynamicTexture)?.upload()
+                }
+            }
         }
         writeUbo(shadowEnabled, shadowStrength)
     }
-    private fun sampleVoxels(modelCenter: Vector3f) {
+    private fun sampleSlab(phase: Int) {
         val img = image ?: return
         val level = Minecraft.getInstance().level ?: return
-        val ox = (modelCenter.x - GRID / 2f).toInt(); val oy = (modelCenter.y - GRID / 2f).toInt(); val oz = (modelCenter.z - GRID / 2f).toInt()
-        origin.set(ox.toFloat(), oy.toFloat(), oz.toFloat())
+        val ox = origin.x.toInt(); val oy = origin.y.toInt(); val oz = origin.z.toInt()
         val pos = BlockPos.MutableBlockPos()
-        for (lz in 0 until GRID) for (ly in 0 until GRID) for (lx in 0 until GRID) {
+        val per = GRID / SLAB_COUNT
+        val lzS = phase * per; val lzE = lzS + per
+        for (lz in lzS until lzE) for (ly in 0 until GRID) for (lx in 0 until GRID) {
             pos.set(ox + lx, oy + ly, oz + lz)
             val bl = level.getBrightness(LightLayer.BLOCK, pos).coerceIn(0, 15)
             val sl = level.getBrightness(LightLayer.SKY, pos).coerceIn(0, 15)
@@ -76,7 +88,6 @@ class AIWorldProbe {
             val tx = sliceX * GRID + lx; val ty = sliceY * GRID + ly
             img.setPixelABGR(tx, ty, (a shl 24) or (b shl 16) or (g shl 8) or r)
         }
-        (Minecraft.getInstance().textureManager.getTexture(id) as? DynamicTexture)?.upload()
     }
     private fun writeUbo(shadowEnabled: Boolean, shadowStrength: Float) {
         val buf = uboMem ?: return
@@ -112,13 +123,14 @@ class AIWorldProbe {
         ubo?.close(); ubo = null
         uboMem?.let { MemoryUtil.memFree(it) }; uboMem = null
         uboDirty = false
-        lastCenter.set(Float.NaN, Float.NaN, Float.NaN); lastFrame = -REBUILD_INTERVAL
+        lastCenter.set(Float.NaN, Float.NaN, Float.NaN); lastFrame = -REBUILD_INTERVAL; rebuildPhase = -1
     }
     companion object {
         const val GRID = 16
         const val SLICE_DIM = 4
         const val TEX_DIM = GRID * SLICE_DIM
-        const val REBUILD_INTERVAL = 5
+        const val SLAB_COUNT = 4
+        const val REBUILD_INTERVAL = 30
         const val MOVE_THRESHOLD = 1.0f
         const val UBO_BYTES = 16 * 5
         private fun writeUboDefault(buf: ByteBuffer) {
