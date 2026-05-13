@@ -8,27 +8,33 @@ data class AIQuat(var x: Float = 0f, var y: Float = 0f, var z: Float = 0f, var w
         val l = sqrt(x * x + y * y + z * z + w * w)
         return if (l > 0f) AIQuat(x / l, y / l, z / l, w / l) else this
     }
-    fun slerp(o: AIQuat, t: Float): AIQuat {
+    fun slerp(o: AIQuat, t: Float): AIQuat { val r = AIQuat(); slerpInto(o, t, r); return r }
+    fun slerpInto(o: AIQuat, t: Float, out: AIQuat) {
         var dot = x * o.x + y * o.y + z * o.z + w * o.w
         var ox = o.x; var oy = o.y; var oz = o.z; var ow = o.w
         if (dot < 0f) { dot = -dot; ox = -ox; oy = -oy; oz = -oz; ow = -ow }
-        if (dot > 0.9995f) return AIQuat(x + (ox - x) * t, y + (oy - y) * t, z + (oz - z) * t, w + (ow - w) * t).normalize()
+        if (dot > 0.9995f) {
+            val rx = x + (ox - x) * t; val ry = y + (oy - y) * t; val rz = z + (oz - z) * t; val rw = w + (ow - w) * t
+            val l = sqrt(rx*rx + ry*ry + rz*rz + rw*rw)
+            if (l > 0f) { out.x = rx/l; out.y = ry/l; out.z = rz/l; out.w = rw/l } else { out.x = x; out.y = y; out.z = z; out.w = w }
+            return
+        }
         val theta0 = acos(dot); val theta = theta0 * t
         val sinTheta = sin(theta); val sinTheta0 = sin(theta0)
         val s0 = cos(theta) - dot * sinTheta / sinTheta0
         val s1 = sinTheta / sinTheta0
-        return AIQuat(x * s0 + ox * s1, y * s0 + oy * s1, z * s0 + oz * s1, w * s0 + ow * s1)
+        out.x = x * s0 + ox * s1; out.y = y * s0 + oy * s1; out.z = z * s0 + oz * s1; out.w = w * s0 + ow * s1
     }
-    fun toMatrix(): AIMat4 {
-        val m = AIMat4()
+    fun toMatrix(): AIMat4 { val m = AIMat4(); toMatrixInto(m); return m }
+    fun toMatrixInto(out: AIMat4) {
         val xx = x * x; val yy = y * y; val zz = z * z
         val xy = x * y; val xz = x * z; val yz = y * z
         val wx = w * x; val wy = w * y; val wz = w * z
-        m.m[0] = 1f - 2f * (yy + zz); m.m[1] = 2f * (xy + wz); m.m[2] = 2f * (xz - wy); m.m[3] = 0f
-        m.m[4] = 2f * (xy - wz); m.m[5] = 1f - 2f * (xx + zz); m.m[6] = 2f * (yz + wx); m.m[7] = 0f
-        m.m[8] = 2f * (xz + wy); m.m[9] = 2f * (yz - wx); m.m[10] = 1f - 2f * (xx + yy); m.m[11] = 0f
-        m.m[12] = 0f; m.m[13] = 0f; m.m[14] = 0f; m.m[15] = 1f
-        return m
+        val m = out.m
+        m[0] = 1f - 2f * (yy + zz); m[1] = 2f * (xy + wz); m[2] = 2f * (xz - wy); m[3] = 0f
+        m[4] = 2f * (xy - wz); m[5] = 1f - 2f * (xx + zz); m[6] = 2f * (yz + wx); m[7] = 0f
+        m[8] = 2f * (xz + wy); m[9] = 2f * (yz - wx); m[10] = 1f - 2f * (xx + yy); m[11] = 0f
+        m[12] = 0f; m[13] = 0f; m[14] = 0f; m[15] = 1f
     }
     companion object {
         fun fromMatrix(m: AIMat4): AIQuat {

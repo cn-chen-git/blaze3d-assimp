@@ -9,8 +9,9 @@ class AISceneData(
     val skeleton: AIBonePose?,
     val embeddedTextures: List<AIEmbeddedTex> = emptyList()
 ) {
+    private val animationMap = animations.associateBy { it.name }
     val hasAnimations get() = animations.isNotEmpty()
     val hasSkeleton get() = skeleton != null
-    fun getAnimation(name: String) = animations.find { it.name == name }
+    fun getAnimation(name: String) = animationMap[name]
     fun getAnimation(index: Int) = animations.getOrNull(index)
 }

@@ -7,13 +7,21 @@ class AINodeGraph(
     val children: MutableList<AINodeGraph> = mutableListOf(),
     var parent: AINodeGraph? = null
 ) {
+    private var lookupRoot: AINodeGraph? = null
+    private var lookup: HashMap<String, AINodeGraph>? = null
     fun findNode(nodeName: String): AINodeGraph? {
-        if (name == nodeName) return this
-        for (child in children) {
-            val found = child.findNode(nodeName)
-            if (found != null) return found
+        val root = if (parent == null) this else { var p: AINodeGraph = this; while (p.parent != null) p = p.parent!!; p }
+        var map = root.lookup
+        if (map == null || root.lookupRoot !== root) {
+            map = HashMap()
+            buildLookup(root, map)
+            root.lookup = map; root.lookupRoot = root
         }
-        return null
+        return map[nodeName]
+    }
+    private fun buildLookup(node: AINodeGraph, out: HashMap<String, AINodeGraph>) {
+        out[node.name] = node
+        for (c in node.children) buildLookup(c, out)
     }
     fun globalTransform(): AIMat4 {
         var mat = transform
