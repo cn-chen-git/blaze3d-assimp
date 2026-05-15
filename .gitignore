@@ -1,0 +1,20 @@
+# idea
+.idea/
+*.iml
+# macos
+*.DS_Store
+# fabric
+run/
+# java
+hs_err_*.log
+replay_*.log
+*.hprof
+*.jfr
+# bazel
+mod/
+/MODULE.bazel.lock
+/test_models
+bazel-*
+/bazel-bin
+/bazel-out
+/bazel-testlogs

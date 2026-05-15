@@ -1,0 +1,16 @@
+common --action_env=JAVA_HOME=/home/ubuntu/.local/jdks/jdk-25.0.2
+common --repo_env=JAVA_HOME=/home/ubuntu/.local/jdks/jdk-25.0.2
+common --java_runtime_version=local_jdk
+common --tool_java_runtime_version=local_jdk
+common --java_language_version=25
+common --tool_java_language_version=25
+common --symlink_prefix=mod/
+common --experimental_convenience_symlinks=ignore
+build --jobs=32
+build --worker_sandboxing=false
+build --reuse_sandbox_directories
+build --disk_cache=/home/ubuntu/.cache/bazel-disk
+build --experimental_worker_multiplex
+build --worker_max_instances=4
+build --strategy=Javac=worker
+startup --host_jvm_args=-Xmx4g

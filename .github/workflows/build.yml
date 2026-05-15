@@ -1,0 +1,41 @@
+name: blaze3d-model build
+on:
+  push:
+    branches: [26.2-snapshot7]
+  pull_request:
+    branches: [26.2-snapshot7]
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    name: bazel package
+    steps:
+      - name: checkout
+        uses: actions/checkout@v6
+      - name: setup java 25
+        uses: actions/setup-java@v5
+        with:
+          java-version: '25'
+          distribution: 'microsoft'
+      - name: setup bazelisk
+        run: |
+          curl -L -o bazel https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-amd64
+          chmod +x bazel
+      - name: build embedded package
+        run: ./bazel --output_user_root="$RUNNER_TEMP/bazel-root" --noworkspace_rc build --java_runtime_version=local_jdk --tool_java_runtime_version=local_jdk --java_language_version=25 --tool_java_language_version=25 //:blaze3d-model
+      - name: show embedded components
+        run: |
+          mkdir -p artifacts
+          cp bazel-bin/blaze3d-model-1.0.0.jar artifacts/
+          echo "| artifact | size | sha256 |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| --- | ---: | --- |" >> "$GITHUB_STEP_SUMMARY"
+          jar=artifacts/blaze3d-model-1.0.0.jar
+          echo "| $(basename "$jar") | $(wc -c < "$jar") | $(sha256sum "$jar" | cut -d ' ' -f 1) |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| embedded jarjar component |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| --- |" >> "$GITHUB_STEP_SUMMARY"
+          zipinfo -1 "$jar" 'META-INF/jars/*.jar' | sed 's#META-INF/jars/##' | sort | while read -r name; do echo "| $name |" >> "$GITHUB_STEP_SUMMARY"; done
+      - name: upload blaze3d-model
+        uses: actions/upload-artifact@v7
+        with:
+          name: blaze3d-model-1.0.0.jar
+          path: artifacts/blaze3d-model-1.0.0.jar

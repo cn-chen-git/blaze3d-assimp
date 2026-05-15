@@ -1,0 +1,46 @@
+{
+	"schemaVersion": 1,
+	"id": "blaze3d-model",
+	"version": "1.0.0",
+	"name": "Blaze3D Model",
+	"description": "Blaze3D Model module for Minecraft 26.2 Fabric model pipelines.",
+	"authors": [
+		"cn-chen-git"
+	],
+	"contact": {},
+	"license": "CC0-1.0",
+	"environment": "*",
+	"custom": {
+		"blaze3d-model": {
+			"module": "model",
+			"minecraft": "26.2",
+			"fabricLoader": "0.19.2",
+			"fabricApi": "0.148.3+26.2",
+			"standalone": true
+		}
+	},
+	"depends": {
+		"fabricloader": ">=0.19.2",
+		"minecraft": "~26.2-",
+		"java": ">=25",
+		"fabric-language-kotlin": "*",
+		"fabric-api": "*"
+	},
+	"entrypoints": {
+		"main": [
+			{
+				"value": "cn.chen.blaze3d.Blaze3d",
+				"adapter": "kotlin"
+			}
+		],
+		"client": [
+			{
+				"value": "cn.chen.blaze3d.client.ClientInit",
+				"adapter": "kotlin"
+			}
+		]
+	},
+	"mixins": [
+		"blaze3d-model.mixins.json"
+	]
+}
